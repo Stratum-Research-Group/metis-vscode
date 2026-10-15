@@ -5,7 +5,9 @@
 
 import { mountFnGenerator } from '../util/mountFnGenerator.js'
 import { Settings } from './Settings.js'
+import { MetisDashboard } from './MetisDashboard.js'
 
 export const mountVoidSettings = mountFnGenerator(Settings)
+export const mountMetisDashboard = mountFnGenerator(MetisDashboard)
 
 

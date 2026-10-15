@@ -23,8 +23,9 @@ import './autocompleteService.js'
 // import './contextGatheringService.js'
 // import './contextUserChangesService.js'
 
-// settings pane
+// settings pane and sovereign dashboard
 import './voidSettingsPane.js'
+import './metisDashboardPane.js'
 
 // register css
 import './media/void.css'

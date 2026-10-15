@@ -38,7 +38,8 @@ import {
 	Mic,
 	VolumeX,
 	Settings as SettingsIcon,
-	Code2
+	Code2,
+	Rocket
 } from 'lucide-react';
 
 export interface ServiceStatus {
@@ -505,6 +506,13 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 					>
 						<ExternalLink className="size-3.5" />
 						Open Web Studio
+					</button>
+					<button
+						onClick={() => accessor.get('ICommandService').executeCommand('workbench.action.openMetisDashboard')}
+						className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs px-4 py-2 rounded-lg shadow-sm transition active:scale-95"
+					>
+						<Rocket className="size-3.5" />
+						Sovereign Launchpad
 					</button>
 				</div>
 			</div>
