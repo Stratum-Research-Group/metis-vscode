@@ -49,7 +49,7 @@ class VoidSettingsInput extends EditorInput {
 	}
 
 	override getName(): string {
-		return nls.localize('voidSettingsInputsName', 'Void\'s Settings');
+		return nls.localize('voidSettingsInputsName', 'Metis Sovereign Settings');
 	}
 
 	override getIcon() {
@@ -112,7 +112,7 @@ class VoidSettingsPane extends EditorPane {
 
 // register Settings pane
 Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane).registerEditorPane(
-	EditorPaneDescriptor.create(VoidSettingsPane, VoidSettingsPane.ID, nls.localize('VoidSettingsPane', "Void\'s Settings Pane")),
+	EditorPaneDescriptor.create(VoidSettingsPane, VoidSettingsPane.ID, nls.localize('VoidSettingsPane', "Metis Sovereign Settings Pane")),
 	[new SyncDescriptor(VoidSettingsInput)]
 );
 
@@ -123,7 +123,7 @@ registerAction2(class extends Action2 {
 	constructor() {
 		super({
 			id: VOID_TOGGLE_SETTINGS_ACTION_ID,
-			title: nls.localize2('voidSettings', "Void: Toggle Settings"),
+			title: nls.localize2('voidSettings', "Metis: Toggle Sovereign Settings"),
 			icon: Codicon.settingsGear,
 			menu: [
 				{
@@ -157,7 +157,6 @@ registerAction2(class extends Action2 {
 			return;
 		}
 
-
 		// else open it
 		const input = instantiationService.createInstance(VoidSettingsInput);
 
@@ -172,7 +171,7 @@ registerAction2(class extends Action2 {
 	constructor() {
 		super({
 			id: VOID_OPEN_SETTINGS_ACTION_ID,
-			title: nls.localize2('voidSettingsAction2', "Void: Open Settings"),
+			title: nls.localize2('voidSettingsAction2', "Metis: Open Sovereign Settings"),
 			f1: true,
 			icon: Codicon.settingsGear,
 		});
@@ -202,7 +201,7 @@ MenuRegistry.appendMenuItem(MenuId.GlobalActivity, {
 	group: '0_command',
 	command: {
 		id: VOID_TOGGLE_SETTINGS_ACTION_ID,
-		title: nls.localize('voidSettingsActionGear', "Void\'s Settings")
+		title: nls.localize('voidSettingsActionGear', "Metis Sovereign Settings")
 	},
 	order: 1
 });

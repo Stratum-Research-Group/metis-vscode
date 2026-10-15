@@ -23,9 +23,24 @@ import { MCPServer } from '../../../../common/mcpServiceTypes.js';
 import { useMCPServiceState } from '../util/services.js';
 import { OPT_OUT_KEY } from '../../../../common/storageKeys.js';
 import { StorageScope, StorageTarget } from '../../../../../../../platform/storage/common/storage.js';
+import {
+	MetisControlCenterSection,
+	HestiaSection,
+	KybernetesSection,
+	PhylaxSection,
+	DianoiaSection,
+	ProsoponSection,
+	StomaSection,
+} from './MetisSovereignSettings.js';
 
 type Tab =
-	| 'metis'
+	| 'metis-cc'
+	| 'hestia'
+	| 'kybernetes'
+	| 'phylax'
+	| 'dianoia'
+	| 'prosopon'
+	| 'stoma'
 	| 'models'
 	| 'localProviders'
 	| 'providers'
@@ -1030,114 +1045,30 @@ const MCPServersList = () => {
 	return <div className="my-2">{content}</div>
 };
 
-const MetisSettingsTab = () => {
-	const settingsState = useSettingsState();
-	const accessor = useAccessor();
-	const voidSettingsService = accessor.get('IVoidSettingsService');
-	const metisSettings = settingsState.settingsOfProvider.metis;
+// Metis sovereign sections are now provided by MetisSovereignSettings.tsx
 
-	return (
-		<div className="flex flex-col gap-6 max-w-[750px]">
-			<div className="bg-gradient-to-r from-indigo-900/30 to-cyan-900/20 border border-indigo-500/30 rounded-xl p-6 backdrop-blur-md">
-				<div className="flex items-center justify-between mb-3">
-					<div className="flex items-center gap-3">
-						<span className="text-2xl">🏛️</span>
-						<div>
-							<h3 className="text-lg font-bold text-white tracking-wide">Metis Sovereign Stack</h3>
-							<p className="text-xs text-indigo-300">Local LLM inference, Phylax action tokens, and Odyssey verification rollback</p>
-						</div>
-					</div>
-					<span className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs px-3 py-1 rounded-full font-semibold">
-						AIR-GAPPED READY
-					</span>
-				</div>
-			</div>
-
-			<div className="bg-void-bg-2 border border-void-border-2 rounded-lg p-5 flex flex-col gap-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h4 className="font-semibold text-void-fg-1 text-sm flex items-center gap-2">
-							<span>🔥</span> Hestia Model Inference Server
-						</h4>
-						<p className="text-xs text-void-fg-3">OpenAI-compatible inference engine running directly on local GPU/CPU hardware</p>
-					</div>
-					<span className="text-xs text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-						127.0.0.1:8080
-					</span>
-				</div>
-
-				<div className="flex flex-col gap-1.5">
-					<label className="text-xs text-void-fg-2 font-medium">Hestia Endpoint URL</label>
-					<input
-						type="text"
-						value={metisSettings?.endpoint || 'http://127.0.0.1:8080/v1'}
-						onChange={(e) => voidSettingsService.setSettingOfProvider('metis', 'endpoint', e.target.value)}
-						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 focus:border-indigo-500 font-mono"
-					/>
-				</div>
-			</div>
-
-			<div className="bg-void-bg-2 border border-void-border-2 rounded-lg p-5 flex flex-col gap-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h4 className="font-semibold text-void-fg-1 text-sm flex items-center gap-2">
-							<span>🧠</span> Kybernetes Agent Orchestrator
-						</h4>
-						<p className="text-xs text-void-fg-3">Autonomous coding harness with Odyssey checkpointing and Hermes skill synthesis</p>
-					</div>
-					<span className="text-xs text-cyan-400 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-						127.0.0.1:8000
-					</span>
-				</div>
-
-				<div className="flex flex-col gap-1.5">
-					<label className="text-xs text-void-fg-2 font-medium">Kybernetes Orchestrator Endpoint</label>
-					<input
-						type="text"
-						value={metisSettings?.orchestratorEndpoint || 'http://127.0.0.1:8000'}
-						onChange={(e) => voidSettingsService.setSettingOfProvider('metis', 'orchestratorEndpoint', e.target.value)}
-						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 focus:border-indigo-500 font-mono"
-					/>
-				</div>
-			</div>
-
-			<div className="bg-void-bg-2 border border-void-border-2 rounded-lg p-5 flex flex-col gap-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h4 className="font-semibold text-void-fg-1 text-sm flex items-center gap-2">
-							<span>🛡️</span> Phylax Cryptographic Action Governance
-						</h4>
-						<p className="text-xs text-void-fg-3">Action tokens required for code block edits, writes, and sandboxed bash execution</p>
-					</div>
-					<span className="text-xs text-amber-400 font-mono bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-						TOKEN GATED
-					</span>
-				</div>
-				<div className="text-xs text-void-fg-3 space-y-1">
-					<p>• <strong>read_file_range</strong>: Permitted automatically (read-only audit).</p>
-					<p>• <strong>edit_file_block / write_file</strong>: Requires affirmative single-use action token approval.</p>
-					<p>• <strong>sandboxed_bash</strong>: Isolated process with strict timeout and output capture.</p>
-				</div>
-			</div>
-		</div>
-	);
-};
 
 export const Settings = () => {
 	const isDark = useIsDark()
 	// ─── sidebar nav ──────────────────────────
 	const [selectedSection, setSelectedSection] =
-		useState<Tab>('models');
+		useState<Tab>('metis-cc');
 
 	const navItems: { tab: Tab; label: string }[] = [
-		{ tab: 'metis', label: 'Metis Sovereign' },
-		{ tab: 'models', label: 'Models' },
-		{ tab: 'localProviders', label: 'Local Providers' },
-		{ tab: 'providers', label: 'Main Providers' },
-		{ tab: 'featureOptions', label: 'Feature Options' },
-		{ tab: 'general', label: 'General' },
-		{ tab: 'mcp', label: 'MCP' },
-		{ tab: 'all', label: 'All Settings' },
+		{ tab: 'metis-cc', label: '🏛️ Sovereign C&C Hub' },
+		{ tab: 'hestia', label: '🔥 Hestia Inference' },
+		{ tab: 'kybernetes', label: '🧭 Kybernetes Agent' },
+		{ tab: 'phylax', label: '🛡️ Phylax Security' },
+		{ tab: 'dianoia', label: '🧠 Dianoia Deliberation' },
+		{ tab: 'prosopon', label: '🎭 Prosopon & Pairing' },
+		{ tab: 'stoma', label: '💾 Stoma / LTHCM' },
+		{ tab: 'models', label: '🤖 Editor Models' },
+		{ tab: 'featureOptions', label: '⚡ Feature Options' },
+		{ tab: 'mcp', label: '🔌 MCP Servers' },
+		{ tab: 'localProviders', label: '💻 Other Local' },
+		{ tab: 'providers', label: '☁️ Cloud Providers' },
+		{ tab: 'general', label: '⚙️ General' },
+		{ tab: 'all', label: '📋 All Settings' },
 	];
 	const shouldShowTab = (tab: Tab) => selectedSection === 'all' || selectedSection === tab;
 	const accessor = useAccessor()
@@ -1256,29 +1187,59 @@ export const Settings = () => {
 
 					<div className='max-w-3xl'>
 
-						<h1 className='text-2xl w-full'>{`Void's Settings`}</h1>
+						<h1 className='text-2xl font-bold w-full text-white tracking-wide'>{`Metis Sovereign Settings`}</h1>
+						<p className='text-xs text-void-fg-3 mb-2'>{`Command & Control hub for local AI orchestration, inference, security governance, and memory.`}</p>
 
-						<div className='w-full h-[1px] my-2' />
-
-						{/* Models section (formerly FeaturesTab) */}
-						<ErrorBoundary>
-							<RedoOnboardingButton />
-						</ErrorBoundary>
-
-						<div className='w-full h-[1px] my-4' />
+						<div className='w-full h-[1px] my-3 border-b border-void-border-2' />
 
 						{/* All sections in flex container with gap-12 */}
 						<div className='flex flex-col gap-12'>
-							{/* Metis Sovereign section */}
-							<div className={shouldShowTab('metis') ? `` : 'hidden'}>
+							{/* 1. Metis Sovereign C&C Hub */}
+							<div className={shouldShowTab('metis-cc') ? `` : 'hidden'}>
 								<ErrorBoundary>
-									<h2 className={`text-3xl mb-2 flex items-center gap-2`}>
-										<span>🏛️</span> Metis Sovereign Settings
-									</h2>
-									<h3 className={`text-void-fg-3 mb-4`}>
-										Manage your sovereign local runtime, model endpoints, and governance policies.
-									</h3>
-									<MetisSettingsTab />
+									<MetisControlCenterSection onSelectTab={(t) => setSelectedSection(t as Tab)} />
+								</ErrorBoundary>
+							</div>
+
+							{/* 2. Hestia Inference Section */}
+							<div className={shouldShowTab('hestia') ? `` : 'hidden'}>
+								<ErrorBoundary>
+									<HestiaSection />
+								</ErrorBoundary>
+							</div>
+
+							{/* 3. Kybernetes Agent Section */}
+							<div className={shouldShowTab('kybernetes') ? `` : 'hidden'}>
+								<ErrorBoundary>
+									<KybernetesSection />
+								</ErrorBoundary>
+							</div>
+
+							{/* 4. Phylax Security Section */}
+							<div className={shouldShowTab('phylax') ? `` : 'hidden'}>
+								<ErrorBoundary>
+									<PhylaxSection />
+								</ErrorBoundary>
+							</div>
+
+							{/* 5. Dianoia Deliberation Section */}
+							<div className={shouldShowTab('dianoia') ? `` : 'hidden'}>
+								<ErrorBoundary>
+									<DianoiaSection />
+								</ErrorBoundary>
+							</div>
+
+							{/* 6. Prosopon Section */}
+							<div className={shouldShowTab('prosopon') ? `` : 'hidden'}>
+								<ErrorBoundary>
+									<ProsoponSection />
+								</ErrorBoundary>
+							</div>
+
+							{/* 7. Stoma / LTHCM Memory Section */}
+							<div className={shouldShowTab('stoma') ? `` : 'hidden'}>
+								<ErrorBoundary>
+									<StomaSection />
 								</ErrorBoundary>
 							</div>
 
@@ -1517,7 +1478,7 @@ export const Settings = () => {
 								{/* Import/Export section */}
 								<div>
 									<h2 className='text-3xl mb-2'>Import/Export</h2>
-									<h4 className='text-void-fg-3 mb-4'>{`Transfer Void's settings and chats in and out of Void.`}</h4>
+									<h4 className='text-void-fg-3 mb-4'>{`Transfer Metis sovereign settings and session history.`}</h4>
 									<div className='flex flex-col gap-8'>
 										{/* Settings Subcategory */}
 										<div className='flex flex-col gap-2 max-w-48 w-full'>
