@@ -81,12 +81,17 @@ export const useMetisStackStatus = () => {
 		let hestiaRes: ServiceStatus = { online: false, latency: null };
 		try {
 			const t0 = performance.now();
-			const res = await fetch(`http://${hestiaHost}:${hestiaPort}/v1/models`, { signal: AbortSignal.timeout(1800) });
-			if (res.ok) {
-				const data = await res.json();
-				hestiaRes = { online: true, latency: Math.round(performance.now() - t0), data: data.data || [] };
-			} else {
-				hestiaRes = { online: false, latency: null, error: `HTTP ${res.status}` };
+			try {
+				const res = await fetch(`http://${hestiaHost}:${hestiaPort}/v1/models`, { signal: AbortSignal.timeout(1800) });
+				if (res.ok) {
+					const data = await res.json();
+					hestiaRes = { online: true, latency: Math.round(performance.now() - t0), data: data.data || [] };
+				} else {
+					hestiaRes = { online: true, latency: Math.round(performance.now() - t0) };
+				}
+			} catch {
+				await fetch(`http://${hestiaHost}:${hestiaPort}/v1/models`, { mode: 'no-cors', signal: AbortSignal.timeout(1800) });
+				hestiaRes = { online: true, latency: Math.round(performance.now() - t0) };
 			}
 		} catch (e: any) {
 			hestiaRes = { online: false, latency: null, error: e.message || 'Offline' };
@@ -96,12 +101,17 @@ export const useMetisStackStatus = () => {
 		let kybRes: ServiceStatus = { online: false, latency: null };
 		try {
 			const t0 = performance.now();
-			const res = await fetch(`http://${kybHost}:${kybPort}/v1/health`, { signal: AbortSignal.timeout(1800) });
-			if (res.ok) {
-				const data = await res.json();
-				kybRes = { online: true, latency: Math.round(performance.now() - t0), data };
-			} else {
-				kybRes = { online: false, latency: null, error: `HTTP ${res.status}` };
+			try {
+				const res = await fetch(`http://${kybHost}:${kybPort}/v1/health`, { signal: AbortSignal.timeout(1800) });
+				if (res.ok) {
+					const data = await res.json();
+					kybRes = { online: true, latency: Math.round(performance.now() - t0), data };
+				} else {
+					kybRes = { online: true, latency: Math.round(performance.now() - t0) };
+				}
+			} catch {
+				await fetch(`http://${kybHost}:${kybPort}/v1/health`, { mode: 'no-cors', signal: AbortSignal.timeout(1800) });
+				kybRes = { online: true, latency: Math.round(performance.now() - t0) };
 			}
 		} catch (e: any) {
 			kybRes = { online: false, latency: null, error: e.message || 'Offline' };
@@ -112,8 +122,13 @@ export const useMetisStackStatus = () => {
 		try {
 			const proto = prosTls ? 'https' : 'http';
 			const t0 = performance.now();
-			const res = await fetch(`${proto}://${prosHost}:${prosPort}`, { signal: AbortSignal.timeout(1800) });
-			prosRes = { online: res.ok, latency: Math.round(performance.now() - t0) };
+			try {
+				const res = await fetch(`${proto}://${prosHost}:${prosPort}`, { signal: AbortSignal.timeout(1800) });
+				prosRes = { online: res.ok, latency: Math.round(performance.now() - t0) };
+			} catch {
+				await fetch(`${proto}://${prosHost}:${prosPort}`, { mode: 'no-cors', signal: AbortSignal.timeout(1800) });
+				prosRes = { online: true, latency: Math.round(performance.now() - t0) };
+			}
 		} catch (e: any) {
 			prosRes = { online: false, latency: null, error: e.message || 'Offline' };
 		}
