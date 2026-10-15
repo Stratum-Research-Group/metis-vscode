@@ -31,6 +31,7 @@ import {
 	DianoiaSection,
 	ProsoponSection,
 	StomaSection,
+	KrisisSection,
 } from './MetisSovereignSettings.js';
 
 type Tab =
@@ -41,6 +42,7 @@ type Tab =
 	| 'dianoia'
 	| 'prosopon'
 	| 'stoma'
+	| 'krisis'
 	| 'models'
 	| 'localProviders'
 	| 'providers'
@@ -1062,6 +1064,7 @@ export const Settings = () => {
 		{ tab: 'dianoia', label: '🧠 Dianoia Deliberation' },
 		{ tab: 'prosopon', label: '🎭 Prosopon & Pairing' },
 		{ tab: 'stoma', label: '💾 Stoma / LTHCM' },
+		{ tab: 'krisis', label: '⚖️ Krisis Selection' },
 		{ tab: 'models', label: '🤖 Editor Models' },
 		{ tab: 'featureOptions', label: '⚡ Feature Options' },
 		{ tab: 'mcp', label: '🔌 MCP Servers' },
@@ -1240,6 +1243,13 @@ export const Settings = () => {
 							<div className={shouldShowTab('stoma') ? `` : 'hidden'}>
 								<ErrorBoundary>
 									<StomaSection />
+								</ErrorBoundary>
+							</div>
+
+							{/* 8. Krisis Answer Selection Section */}
+							<div className={shouldShowTab('krisis') ? `` : 'hidden'}>
+								<ErrorBoundary>
+									<KrisisSection />
 								</ErrorBoundary>
 							</div>
 

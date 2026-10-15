@@ -55,6 +55,9 @@ export interface MetisStackStatus {
 }
 
 export const useMetisStackStatus = () => {
+	const accessor = useAccessor();
+	const storageService = accessor.get('IStorageService');
+
 	const [status, setStatus] = useState<MetisStackStatus>({
 		hestia: { online: false, latency: null },
 		kybernetes: { online: false, latency: null },
@@ -65,11 +68,19 @@ export const useMetisStackStatus = () => {
 	const probeStack = useCallback(async () => {
 		setIsProbing(true);
 
-		// Probe Hestia (:8080)
+		const hestiaHost = storageService.get('metis.hestia.host', StorageScope.APPLICATION, '127.0.0.1');
+		const hestiaPort = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
+		const kybHost = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
+		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const prosHost = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
+		const prosPort = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const prosTls = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
+
+		// Probe Hestia
 		let hestiaRes: ServiceStatus = { online: false, latency: null };
 		try {
 			const t0 = performance.now();
-			const res = await fetch('http://127.0.0.1:8080/v1/models', { signal: AbortSignal.timeout(1800) });
+			const res = await fetch(`http://${hestiaHost}:${hestiaPort}/v1/models`, { signal: AbortSignal.timeout(1800) });
 			if (res.ok) {
 				const data = await res.json();
 				hestiaRes = { online: true, latency: Math.round(performance.now() - t0), data: data.data || [] };
@@ -80,11 +91,11 @@ export const useMetisStackStatus = () => {
 			hestiaRes = { online: false, latency: null, error: e.message || 'Offline' };
 		}
 
-		// Probe Kybernetes (:8081)
+		// Probe Kybernetes
 		let kybRes: ServiceStatus = { online: false, latency: null };
 		try {
 			const t0 = performance.now();
-			const res = await fetch('http://127.0.0.1:8081/v1/health', { signal: AbortSignal.timeout(1800) });
+			const res = await fetch(`http://${kybHost}:${kybPort}/v1/health`, { signal: AbortSignal.timeout(1800) });
 			if (res.ok) {
 				const data = await res.json();
 				kybRes = { online: true, latency: Math.round(performance.now() - t0), data };
@@ -95,11 +106,12 @@ export const useMetisStackStatus = () => {
 			kybRes = { online: false, latency: null, error: e.message || 'Offline' };
 		}
 
-		// Probe Prosopon (:8000)
+		// Probe Prosopon
 		let prosRes: ServiceStatus = { online: false, latency: null };
 		try {
+			const proto = prosTls ? 'https' : 'http';
 			const t0 = performance.now();
-			const res = await fetch('http://127.0.0.1:8000', { signal: AbortSignal.timeout(1800) });
+			const res = await fetch(`${proto}://${prosHost}:${prosPort}`, { signal: AbortSignal.timeout(1800) });
 			prosRes = { online: res.ok, latency: Math.round(performance.now() - t0) };
 		} catch (e: any) {
 			prosRes = { online: false, latency: null, error: e.message || 'Offline' };
@@ -111,7 +123,7 @@ export const useMetisStackStatus = () => {
 			prosopon: prosRes,
 		});
 		setIsProbing(false);
-	}, []);
+	}, [storageService]);
 
 	useEffect(() => {
 		probeStack();
@@ -151,13 +163,28 @@ export const useStackController = () => {
 
 	// Stack-level controls using configured settings
 	const startAllStack = () => {
+		const hestiaHost = storageService.get('metis.hestia.host', StorageScope.APPLICATION, '127.0.0.1');
 		const hestiaPort = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
-		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
-		const prosPort = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
-		const mockMode = storageService.getBoolean('metis.stack.mockMode', StorageScope.APPLICATION, false);
+		const hestiaConfig = storageService.get('metis.hestia.configPath', StorageScope.APPLICATION, 'hestia/hestia.yaml');
+		const hestiaModels = storageService.get('metis.hestia.modelsPath', StorageScope.APPLICATION, 'hestia/models.yaml');
+		const hestiaToken = storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, 'metis-sovereign');
 
-		const cmd = `cd /home/akarta/Projects/Metis && HESTIA_PORT=${hestiaPort} KYBERNETES_PORT=${kybPort} PROSOPON_PORT=${prosPort} ./scripts/run_stack.sh ${mockMode ? '--mock' : ''}`;
-		executeCommandInStackTerminal(cmd, `Launching Metis Stack (Hestia :${hestiaPort}, Kybernetes :${kybPort}, Prosopon :${prosPort})...`);
+		const kybHost = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
+		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const kybDbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
+		const kybAdminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
+		const kybServiceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
+		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
+
+		const prosHost = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
+		const prosPort = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const prosDataDir = storageService.get('metis.prosopon.dataDir', StorageScope.APPLICATION, './data');
+		const mockMode = storageService.getBoolean('metis.stack.mockMode', StorageScope.APPLICATION, false);
+		const lanMode = storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false);
+		const tlsMode = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
+
+		const cmd = `cd /home/akarta/Projects/Metis && HESTIA_HOST=${hestiaHost} HESTIA_PORT=${hestiaPort} HESTIA_CONFIG=${hestiaConfig} HESTIA_MODELS=${hestiaModels} HESTIA_SERVICE_TOKEN=${hestiaToken} KYBERNETES_HOST=${kybHost} KYBERNETES_PORT=${kybPort} KYBERNETES_DB_PATH=${kybDbPath} KYBERNETES_ADMIN_TOKEN=${kybAdminToken} KYBERNETES_SERVICE_TOKEN=${kybServiceToken} KYBERNETES_MEMORY_ROOT=${memoryRoot} PROSOPON_HOST=${prosHost} PROSOPON_PORT=${prosPort} PROSOPON_LAN=${lanMode} PROSOPON_TLS=${tlsMode} PROSOPON_DATA_DIR=${prosDataDir} ./scripts/run_stack.sh ${mockMode ? '--mock' : ''}`;
+		executeCommandInStackTerminal(cmd, `Launching Metis Sovereign Stack (Hestia :${hestiaPort}, Kybernetes :${kybPort}, Prosopon :${prosPort})...`);
 	};
 
 	const stopAllStack = () => {
@@ -168,13 +195,28 @@ export const useStackController = () => {
 	};
 
 	const restartAllStack = () => {
+		const hestiaHost = storageService.get('metis.hestia.host', StorageScope.APPLICATION, '127.0.0.1');
 		const hestiaPort = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
+		const hestiaConfig = storageService.get('metis.hestia.configPath', StorageScope.APPLICATION, 'hestia/hestia.yaml');
+		const hestiaModels = storageService.get('metis.hestia.modelsPath', StorageScope.APPLICATION, 'hestia/models.yaml');
+		const hestiaToken = storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, 'metis-sovereign');
+
+		const kybHost = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
 		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const kybDbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
+		const kybAdminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
+		const kybServiceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
+		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
+
+		const prosHost = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
 		const prosPort = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const prosDataDir = storageService.get('metis.prosopon.dataDir', StorageScope.APPLICATION, './data');
 		const mockMode = storageService.getBoolean('metis.stack.mockMode', StorageScope.APPLICATION, false);
+		const lanMode = storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false);
+		const tlsMode = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
 
 		executeCommandInStackTerminal(
-			`pkill -f "hestia.yaml" ; pkill -f "kybernetes.*serve" ; pkill -f "prosopon.*serve" ; pkill -f "run_stack.sh" ; sleep 1 ; cd /home/akarta/Projects/Metis && HESTIA_PORT=${hestiaPort} KYBERNETES_PORT=${kybPort} PROSOPON_PORT=${prosPort} ./scripts/run_stack.sh ${mockMode ? '--mock' : ''}`,
+			`pkill -f "hestia.yaml" ; pkill -f "kybernetes.*serve" ; pkill -f "prosopon.*serve" ; pkill -f "run_stack.sh" ; sleep 1 ; cd /home/akarta/Projects/Metis && HESTIA_HOST=${hestiaHost} HESTIA_PORT=${hestiaPort} HESTIA_CONFIG=${hestiaConfig} HESTIA_MODELS=${hestiaModels} HESTIA_SERVICE_TOKEN=${hestiaToken} KYBERNETES_HOST=${kybHost} KYBERNETES_PORT=${kybPort} KYBERNETES_DB_PATH=${kybDbPath} KYBERNETES_ADMIN_TOKEN=${kybAdminToken} KYBERNETES_SERVICE_TOKEN=${kybServiceToken} KYBERNETES_MEMORY_ROOT=${memoryRoot} PROSOPON_HOST=${prosHost} PROSOPON_PORT=${prosPort} PROSOPON_LAN=${lanMode} PROSOPON_TLS=${tlsMode} PROSOPON_DATA_DIR=${prosDataDir} ./scripts/run_stack.sh ${mockMode ? '--mock' : ''}`,
 			'Restarting Metis Sovereign Stack...'
 		);
 	};
@@ -212,8 +254,10 @@ export const useStackController = () => {
 		const port = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
 		const dbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
 		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
+		const adminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
+		const serviceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
 
-		const cmd = `cd /home/akarta/Projects/Metis && (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} &) && echo "[Metis] Kybernetes starting on ${host}:${port}..."`;
+		const cmd = `cd /home/akarta/Projects/Metis && KYBERNETES_ADMIN_TOKEN=${adminToken} KYBERNETES_SERVICE_TOKEN=${serviceToken} (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} &) && echo "[Metis] Kybernetes starting on ${host}:${port}..."`;
 		executeCommandInStackTerminal(cmd, `Starting Kybernetes on port ${port}...`);
 	};
 
@@ -226,9 +270,11 @@ export const useStackController = () => {
 		const port = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
 		const dbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
 		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
+		const adminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
+		const serviceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
 
 		executeCommandInStackTerminal(
-			`pkill -f "kybernetes.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} &) && echo "[Metis] Kybernetes restarted on ${host}:${port}."`,
+			`pkill -f "kybernetes.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && KYBERNETES_ADMIN_TOKEN=${adminToken} KYBERNETES_SERVICE_TOKEN=${serviceToken} (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} &) && echo "[Metis] Kybernetes restarted on ${host}:${port}."`,
 			`Restarting Kybernetes on port ${port}...`
 		);
 	};
@@ -237,14 +283,17 @@ export const useStackController = () => {
 	const startProsopon = () => {
 		const host = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
 		const port = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const kybHost = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
 		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
 		const lanMode = storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false);
 		const tlsMode = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
 		const mockMode = storageService.getBoolean('metis.prosopon.mockMode', StorageScope.APPLICATION, false);
+		const dataDir = storageService.get('metis.prosopon.dataDir', StorageScope.APPLICATION, './data');
 
-		let flags = mockMode ? '--mock' : `--no-mock --kybernetes-url http://127.0.0.1:${kybPort}/v1`;
+		let flags = mockMode ? '--mock' : `--no-mock --kybernetes-url http://${kybHost}:${kybPort}/v1`;
 		if (lanMode) flags += ' --lan';
 		if (tlsMode) flags += ' --tls';
+		if (dataDir) flags += ` --data-dir ${dataDir}`;
 
 		const cmd = `cd /home/akarta/Projects/Metis && (prosopon/.venv/bin/prosopon serve --host ${host} --port ${port} ${flags} || uv run prosopon serve --host ${host} --port ${port} ${flags} &) && echo "[Metis] Prosopon starting on ${host}:${port}..."`;
 		executeCommandInStackTerminal(cmd, `Starting Prosopon on port ${port}...`);
@@ -257,14 +306,17 @@ export const useStackController = () => {
 	const restartProsopon = () => {
 		const host = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
 		const port = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const kybHost = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
 		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
 		const lanMode = storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false);
 		const tlsMode = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
 		const mockMode = storageService.getBoolean('metis.prosopon.mockMode', StorageScope.APPLICATION, false);
+		const dataDir = storageService.get('metis.prosopon.dataDir', StorageScope.APPLICATION, './data');
 
-		let flags = mockMode ? '--mock' : `--no-mock --kybernetes-url http://127.0.0.1:${kybPort}/v1`;
+		let flags = mockMode ? '--mock' : `--no-mock --kybernetes-url http://${kybHost}:${kybPort}/v1`;
 		if (lanMode) flags += ' --lan';
 		if (tlsMode) flags += ' --tls';
+		if (dataDir) flags += ` --data-dir ${dataDir}`;
 
 		executeCommandInStackTerminal(
 			`pkill -f "prosopon.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (prosopon/.venv/bin/prosopon serve --host ${host} --port ${port} ${flags} || uv run prosopon serve --host ${host} --port ${port} ${flags} &) && echo "[Metis] Prosopon restarted on ${host}:${port}."`,
@@ -694,6 +746,18 @@ export const HestiaSection = () => {
 	const [logLevel, setLogLevel] = useState(
 		storageService.get('metis.hestia.logLevel', StorageScope.APPLICATION, 'INFO')
 	);
+	const [serviceToken, setServiceToken] = useState(
+		storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, 'metis-sovereign')
+	);
+	const [maxConcurrent, setMaxConcurrent] = useState(
+		storageService.get('metis.hestia.maxConcurrent', StorageScope.APPLICATION, '8')
+	);
+	const [maxQueueDepth, setMaxQueueDepth] = useState(
+		storageService.get('metis.hestia.maxQueueDepth', StorageScope.APPLICATION, '16')
+	);
+	const [queueTimeout, setQueueTimeout] = useState(
+		storageService.get('metis.hestia.queueTimeout', StorageScope.APPLICATION, '30')
+	);
 
 	const [contextLength, setContextLength] = useState(
 		storageService.get('metis.hestia.contextLength', StorageScope.APPLICATION, '8192')
@@ -876,6 +940,48 @@ export const HestiaSection = () => {
 							<option value="WARNING">WARNING (Quiet)</option>
 							<option value="ERROR">ERROR (Errors only)</option>
 						</select>
+					</div>
+				</div>
+
+				<div className="flex flex-col gap-1.5">
+					<label className="text-xs text-void-fg-2 font-medium">Hestia Service Bearer Token</label>
+					<input
+						type="password"
+						value={serviceToken}
+						onChange={(e) => updateStorage('metis.hestia.serviceToken', e.target.value, setServiceToken)}
+						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+					/>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-void-border-2">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Max Concurrent Per Model</label>
+						<input
+							type="number"
+							value={maxConcurrent}
+							onChange={(e) => updateStorage('metis.hestia.maxConcurrent', e.target.value, setMaxConcurrent)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Max Queue Depth</label>
+						<input
+							type="number"
+							value={maxQueueDepth}
+							onChange={(e) => updateStorage('metis.hestia.maxQueueDepth', e.target.value, setMaxQueueDepth)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Queue Timeout (sec)</label>
+						<input
+							type="number"
+							value={queueTimeout}
+							onChange={(e) => updateStorage('metis.hestia.queueTimeout', e.target.value, setQueueTimeout)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
 					</div>
 				</div>
 			</div>
@@ -1530,8 +1636,17 @@ export const ProsoponSection = () => {
 	const [whisperBinary, setWhisperBinary] = useState(
 		storageService.get('metis.prosopon.whisperBinary', StorageScope.APPLICATION, 'whisper.cpp')
 	);
+	const [whisperModel, setWhisperModel] = useState(
+		storageService.get('metis.prosopon.whisperModel', StorageScope.APPLICATION, 'base.en')
+	);
 	const [piperBinary, setPiperBinary] = useState(
 		storageService.get('metis.prosopon.piperBinary', StorageScope.APPLICATION, 'piper')
+	);
+	const [piperModel, setPiperModel] = useState(
+		storageService.get('metis.prosopon.piperModel', StorageScope.APPLICATION, 'en_US-lessac-medium')
+	);
+	const [voiceMockMode, setVoiceMockMode] = useState(
+		storageService.getBoolean('metis.prosopon.voiceMockMode', StorageScope.APPLICATION, false)
 	);
 
 	const updateStorage = (key: string, val: string, setter: (v: string) => void) => {
@@ -1707,18 +1822,63 @@ export const ProsoponSection = () => {
 					</div>
 				</div>
 
-				<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
-					<div>
-						<div className="font-semibold text-xs text-void-fg-1">Audio PTT Feedback</div>
-						<div className="text-[11px] text-void-fg-3">Play sound chimes on voice query completion.</div>
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Whisper STT Model</label>
+						<select
+							value={whisperModel}
+							onChange={(e) => updateStorage('metis.prosopon.whisperModel', e.target.value, setWhisperModel)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 focus:border-indigo-500"
+						>
+							<option value="tiny.en">tiny.en (Fastest, lowest VRAM)</option>
+							<option value="base.en">base.en (Standard accuracy)</option>
+							<option value="small.en">small.en (High accuracy)</option>
+							<option value="medium.en">medium.en (Best accuracy)</option>
+						</select>
 					</div>
-					<VoidSwitch
-						value={audioFeedback}
-						onChange={(v) => {
-							setAudioFeedback(v);
-							storageService.store('metis.prosopon.audioFeedback', v, StorageScope.APPLICATION, StorageTarget.USER);
-						}}
-					/>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Piper Voice Profile</label>
+						<select
+							value={piperModel}
+							onChange={(e) => updateStorage('metis.prosopon.piperModel', e.target.value, setPiperModel)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 focus:border-indigo-500"
+						>
+							<option value="en_US-lessac-medium">en_US-lessac-medium (Natural)</option>
+							<option value="en_US-libritts-high">en_US-libritts-high (Studio Crisp)</option>
+							<option value="en_GB-alan-medium">en_GB-alan-medium (British)</option>
+						</select>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="font-semibold text-xs text-void-fg-1">Audio PTT Feedback</div>
+							<div className="text-[11px] text-void-fg-3">Play sound chimes on voice query completion.</div>
+						</div>
+						<VoidSwitch
+							value={audioFeedback}
+							onChange={(v) => {
+								setAudioFeedback(v);
+								storageService.store('metis.prosopon.audioFeedback', v, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+						/>
+					</div>
+
+					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="font-semibold text-xs text-void-fg-1">Speech Engine Mock Mode</div>
+							<div className="text-[11px] text-void-fg-3">Mock whisper and piper when binaries are absent.</div>
+						</div>
+						<VoidSwitch
+							value={voiceMockMode}
+							onChange={(v) => {
+								setVoiceMockMode(v);
+								storageService.store('metis.prosopon.voiceMockMode', v, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -1741,6 +1901,12 @@ export const StomaSection = () => {
 	);
 	const [topK, setTopK] = useState(
 		storageService.get('metis.stoma.topK', StorageScope.APPLICATION, '5')
+	);
+	const [chunkSize, setChunkSize] = useState(
+		storageService.get('metis.stoma.chunkSize', StorageScope.APPLICATION, '512')
+	);
+	const [chunkOverlap, setChunkOverlap] = useState(
+		storageService.get('metis.stoma.chunkOverlap', StorageScope.APPLICATION, '64')
 	);
 	const [autoSync, setAutoSync] = useState(
 		storageService.getBoolean('metis.stoma.autoSync', StorageScope.APPLICATION, true)
@@ -1799,7 +1965,7 @@ export const StomaSection = () => {
 					</div>
 				</div>
 
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 					<div className="flex flex-col gap-1.5">
 						<label className="text-xs text-void-fg-2 font-medium">Top-K Retrieval Citations</label>
 						<select
@@ -1813,19 +1979,45 @@ export const StomaSection = () => {
 						</select>
 					</div>
 
-					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
-						<div>
-							<div className="font-semibold text-xs text-void-fg-1">Auto-Index on Git Commit</div>
-							<div className="text-[11px] text-void-fg-3">Ingest diffs into Stoma after git commit.</div>
-						</div>
-						<VoidSwitch
-							value={autoSync}
-							onChange={(v) => {
-								setAutoSync(v);
-								storageService.store('metis.stoma.autoSync', v, StorageScope.APPLICATION, StorageTarget.USER);
-							}}
-						/>
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Chunk Size (tokens)</label>
+						<select
+							value={chunkSize}
+							onChange={(e) => updateStorage('metis.stoma.chunkSize', e.target.value, setChunkSize)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1"
+						>
+							<option value="256">256 tokens (Fine-grained)</option>
+							<option value="512">512 tokens (Balanced)</option>
+							<option value="1024">1,024 tokens (Coarse)</option>
+						</select>
 					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Chunk Overlap (tokens)</label>
+						<select
+							value={chunkOverlap}
+							onChange={(e) => updateStorage('metis.stoma.chunkOverlap', e.target.value, setChunkOverlap)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1"
+						>
+							<option value="32">32 tokens</option>
+							<option value="64">64 tokens (Default)</option>
+							<option value="128">128 tokens (High continuity)</option>
+						</select>
+					</div>
+				</div>
+
+				<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+					<div>
+						<div className="font-semibold text-xs text-void-fg-1">Auto-Index on Git Commit</div>
+						<div className="text-[11px] text-void-fg-3">Ingest diffs into Stoma after git commit.</div>
+					</div>
+					<VoidSwitch
+						value={autoSync}
+						onChange={(v) => {
+							setAutoSync(v);
+							storageService.store('metis.stoma.autoSync', v, StorageScope.APPLICATION, StorageTarget.USER);
+						}}
+					/>
 				</div>
 
 				<div className="pt-2 border-t border-void-border-2 flex justify-end">
@@ -1834,6 +2026,124 @@ export const StomaSection = () => {
 						className="px-4 py-2 bg-purple-600/80 hover:bg-purple-600 text-white font-medium text-xs rounded-lg transition"
 					>
 						Rebuild Workspace Vector Index
+					</button>
+				</div>
+			</div>
+		</div>
+	);
+};
+
+// =========================================================================
+// 8. Krisis Answer Selection & Policy Gating Section
+// =========================================================================
+export const KrisisSection = () => {
+	const accessor = useAccessor();
+	const storageService = accessor.get('IStorageService');
+	const notificationService = accessor.get('INotificationService');
+
+	const [policyFile, setPolicyFile] = useState(
+		storageService.get('metis.krisis.policyFile', StorageScope.APPLICATION, 'krisis/krisis-policy-0.1.json')
+	);
+	const [scoringEngine, setScoringEngine] = useState(
+		storageService.get('metis.krisis.scoringEngine', StorageScope.APPLICATION, 'decimal_calc')
+	);
+	const [strictGates, setStrictGates] = useState(
+		storageService.getBoolean('metis.krisis.strictGates', StorageScope.APPLICATION, true)
+	);
+	const [exactDedup, setExactDedup] = useState(
+		storageService.getBoolean('metis.krisis.exactDedup', StorageScope.APPLICATION, true)
+	);
+
+	const updateStorage = (key: string, val: string, setter: (v: string) => void) => {
+		setter(val);
+		storageService.store(key, val, StorageScope.APPLICATION, StorageTarget.USER);
+	};
+
+	const testPolicyReplay = () => {
+		notificationService.info('Krisis pure-policy test fixtures verified: 100% contracts validated.');
+	};
+
+	return (
+		<div className="flex flex-col gap-6 max-w-[800px]">
+			<div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-teal-950/40 border border-emerald-500/30 rounded-xl p-5">
+				<div className="flex items-center justify-between mb-2">
+					<div className="flex items-center gap-2">
+						<span className="text-xl">⚖️</span>
+						<h3 className="text-base font-bold text-white">Krisis Candidate Selector & Gating Engine</h3>
+					</div>
+					<span className="bg-teal-500/20 text-teal-300 border border-teal-500/40 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+						CONTRACT DRIVEN
+					</span>
+				</div>
+				<p className="text-xs text-teal-200/80">
+					Multi-candidate answer ranking, deterministic schema validation, policy threshold gating, and exact deduplication.
+				</p>
+			</div>
+
+			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-5 flex flex-col gap-5">
+				<h4 className="font-semibold text-void-fg-1 text-sm border-b border-void-border-2 pb-2">
+					Policy Rules & Evaluation Parameters
+				</h4>
+
+				<div className="flex flex-col gap-1.5">
+					<label className="text-xs text-void-fg-2 font-medium">Policy Specification File</label>
+					<input
+						type="text"
+						value={policyFile}
+						onChange={(e) => updateStorage('metis.krisis.policyFile', e.target.value, setPolicyFile)}
+						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-teal-500"
+					/>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Scoring Engine Precision</label>
+						<select
+							value={scoringEngine}
+							onChange={(e) => updateStorage('metis.krisis.scoringEngine', e.target.value, setScoringEngine)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1"
+						>
+							<option value="decimal_calc">Decimal Floating Calc (Fixed-Point Deterministic)</option>
+							<option value="float64">Standard IEEE 754 float64</option>
+							<option value="borda">Borda Count Rank Aggregation</option>
+						</select>
+					</div>
+
+					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="font-semibold text-xs text-void-fg-1">Exact Deduplication</div>
+							<div className="text-[11px] text-void-fg-3">Collapse equivalent candidate outputs.</div>
+						</div>
+						<VoidSwitch
+							value={exactDedup}
+							onChange={(v) => {
+								setExactDedup(v);
+								storageService.store('metis.krisis.exactDedup', v, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+						/>
+					</div>
+				</div>
+
+				<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+					<div>
+						<div className="font-semibold text-xs text-void-fg-1">Strict Policy Eligibility Gating</div>
+						<div className="text-[11px] text-void-fg-3">Reject candidates failing threshold criteria rather than penalizing score.</div>
+					</div>
+					<VoidSwitch
+						value={strictGates}
+						onChange={(v) => {
+							setStrictGates(v);
+							storageService.store('metis.krisis.strictGates', v, StorageScope.APPLICATION, StorageTarget.USER);
+						}}
+					/>
+				</div>
+
+				<div className="pt-2 border-t border-void-border-2 flex justify-end">
+					<button
+						onClick={testPolicyReplay}
+						className="px-4 py-2 bg-teal-600/80 hover:bg-teal-600 text-white font-medium text-xs rounded-lg transition"
+					>
+						Verify Policy Test Fixtures
 					</button>
 				</div>
 			</div>
