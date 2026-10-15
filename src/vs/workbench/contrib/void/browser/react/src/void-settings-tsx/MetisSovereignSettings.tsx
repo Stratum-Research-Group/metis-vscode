@@ -31,7 +31,14 @@ import {
 	RefreshCw,
 	Loader2,
 	Check,
-	X
+	X,
+	FolderGit2,
+	Lock,
+	Radio,
+	Mic,
+	VolumeX,
+	Settings as SettingsIcon,
+	Code2
 } from 'lucide-react';
 
 export interface ServiceStatus {
@@ -120,6 +127,7 @@ export const useStackController = () => {
 	const terminalService = accessor.get('ITerminalService');
 	const nativeHostService = accessor.get('INativeHostService');
 	const notificationService = accessor.get('INotificationService');
+	const storageService = accessor.get('IStorageService');
 
 	const executeCommandInStackTerminal = async (cmd: string, notifyMsg?: string) => {
 		try {
@@ -141,29 +149,45 @@ export const useStackController = () => {
 		}
 	};
 
+	// Stack-level controls using configured settings
 	const startAllStack = () => {
-		executeCommandInStackTerminal('cd /home/akarta/Projects/Metis && ./scripts/run_stack.sh', 'Starting Metis Sovereign Stack (:8080, :8081, :8000)...');
+		const hestiaPort = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
+		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const prosPort = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const mockMode = storageService.getBoolean('metis.stack.mockMode', StorageScope.APPLICATION, false);
+
+		const cmd = `cd /home/akarta/Projects/Metis && HESTIA_PORT=${hestiaPort} KYBERNETES_PORT=${kybPort} PROSOPON_PORT=${prosPort} ./scripts/run_stack.sh ${mockMode ? '--mock' : ''}`;
+		executeCommandInStackTerminal(cmd, `Launching Metis Stack (Hestia :${hestiaPort}, Kybernetes :${kybPort}, Prosopon :${prosPort})...`);
 	};
 
 	const stopAllStack = () => {
 		executeCommandInStackTerminal(
-			'pkill -f "hestia.yaml" ; pkill -f "kybernetes.*serve" ; pkill -f "prosopon.*serve" ; pkill -f "run_stack.sh" ; echo "[Metis] All services stopped."',
-			'Stopping all Metis Sovereign Stack processes...'
+			'pkill -f "hestia.yaml" ; pkill -f "kybernetes.*serve" ; pkill -f "prosopon.*serve" ; pkill -f "run_stack.sh" ; echo "[Metis] All services stopped cleanly."',
+			'Stopping all Metis processes...'
 		);
 	};
 
 	const restartAllStack = () => {
+		const hestiaPort = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
+		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const prosPort = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const mockMode = storageService.getBoolean('metis.stack.mockMode', StorageScope.APPLICATION, false);
+
 		executeCommandInStackTerminal(
-			'pkill -f "hestia.yaml" ; pkill -f "kybernetes.*serve" ; pkill -f "prosopon.*serve" ; pkill -f "run_stack.sh" ; sleep 1 ; cd /home/akarta/Projects/Metis && ./scripts/run_stack.sh',
+			`pkill -f "hestia.yaml" ; pkill -f "kybernetes.*serve" ; pkill -f "prosopon.*serve" ; pkill -f "run_stack.sh" ; sleep 1 ; cd /home/akarta/Projects/Metis && HESTIA_PORT=${hestiaPort} KYBERNETES_PORT=${kybPort} PROSOPON_PORT=${prosPort} ./scripts/run_stack.sh ${mockMode ? '--mock' : ''}`,
 			'Restarting Metis Sovereign Stack...'
 		);
 	};
 
+	// Hestia controls
 	const startHestia = () => {
-		executeCommandInStackTerminal(
-			'cd /home/akarta/Projects/Metis && (hestia/.venv/bin/hestia serve --port 8080 --config hestia/hestia.yaml --models hestia/models.yaml || uv run hestia serve --port 8080 --config hestia/hestia.yaml --models hestia/models.yaml &) && echo "[Metis] Hestia starting on :8080..."',
-			'Starting Hestia Model Server on port 8080...'
-		);
+		const host = storageService.get('metis.hestia.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
+		const configPath = storageService.get('metis.hestia.configPath', StorageScope.APPLICATION, 'hestia/hestia.yaml');
+		const modelsPath = storageService.get('metis.hestia.modelsPath', StorageScope.APPLICATION, 'hestia/models.yaml');
+
+		const cmd = `cd /home/akarta/Projects/Metis && (hestia/.venv/bin/hestia serve --host ${host} --port ${port} --config ${configPath} --models ${modelsPath} || uv run hestia serve --host ${host} --port ${port} --config ${configPath} --models ${modelsPath} &) && echo "[Metis] Hestia starting on ${host}:${port}..."`;
+		executeCommandInStackTerminal(cmd, `Starting Hestia on port ${port}...`);
 	};
 
 	const stopHestia = () => {
@@ -171,17 +195,26 @@ export const useStackController = () => {
 	};
 
 	const restartHestia = () => {
+		const host = storageService.get('metis.hestia.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
+		const configPath = storageService.get('metis.hestia.configPath', StorageScope.APPLICATION, 'hestia/hestia.yaml');
+		const modelsPath = storageService.get('metis.hestia.modelsPath', StorageScope.APPLICATION, 'hestia/models.yaml');
+
 		executeCommandInStackTerminal(
-			'pkill -f "hestia.yaml" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (hestia/.venv/bin/hestia serve --port 8080 --config hestia/hestia.yaml --models hestia/models.yaml || uv run hestia serve --port 8080 --config hestia/hestia.yaml --models hestia/models.yaml &) && echo "[Metis] Hestia restarted."',
-			'Restarting Hestia Model Server...'
+			`pkill -f "hestia.yaml" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (hestia/.venv/bin/hestia serve --host ${host} --port ${port} --config ${configPath} --models ${modelsPath} || uv run hestia serve --host ${host} --port ${port} --config ${configPath} --models ${modelsPath} &) && echo "[Metis] Hestia restarted on ${host}:${port}."`,
+			`Restarting Hestia on port ${port}...`
 		);
 	};
 
+	// Kybernetes controls
 	const startKybernetes = () => {
-		executeCommandInStackTerminal(
-			'cd /home/akarta/Projects/Metis && (kybernetes/.venv/bin/kybernetes serve --host 127.0.0.1 --port 8081 --memory-root .stoma || uv run kybernetes serve --host 127.0.0.1 --port 8081 --memory-root .stoma &) && echo "[Metis] Kybernetes starting on :8081..."',
-			'Starting Kybernetes Orchestrator on port 8081...'
-		);
+		const host = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const dbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
+		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
+
+		const cmd = `cd /home/akarta/Projects/Metis && (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} &) && echo "[Metis] Kybernetes starting on ${host}:${port}..."`;
+		executeCommandInStackTerminal(cmd, `Starting Kybernetes on port ${port}...`);
 	};
 
 	const stopKybernetes = () => {
@@ -189,17 +222,32 @@ export const useStackController = () => {
 	};
 
 	const restartKybernetes = () => {
+		const host = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const dbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
+		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
+
 		executeCommandInStackTerminal(
-			'pkill -f "kybernetes.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (kybernetes/.venv/bin/kybernetes serve --host 127.0.0.1 --port 8081 --memory-root .stoma || uv run kybernetes serve --host 127.0.0.1 --port 8081 --memory-root .stoma &) && echo "[Metis] Kybernetes restarted."',
-			'Restarting Kybernetes Orchestrator...'
+			`pkill -f "kybernetes.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} &) && echo "[Metis] Kybernetes restarted on ${host}:${port}."`,
+			`Restarting Kybernetes on port ${port}...`
 		);
 	};
 
+	// Prosopon controls
 	const startProsopon = () => {
-		executeCommandInStackTerminal(
-			'cd /home/akarta/Projects/Metis && (prosopon/.venv/bin/prosopon serve --port 8000 --kybernetes-url http://127.0.0.1:8081/v1 --no-mock || uv run prosopon serve --port 8000 --kybernetes-url http://127.0.0.1:8081/v1 --no-mock &) && echo "[Metis] Prosopon starting on :8000..."',
-			'Starting Prosopon Web Interface on port 8000...'
-		);
+		const host = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const lanMode = storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false);
+		const tlsMode = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
+		const mockMode = storageService.getBoolean('metis.prosopon.mockMode', StorageScope.APPLICATION, false);
+
+		let flags = mockMode ? '--mock' : `--no-mock --kybernetes-url http://127.0.0.1:${kybPort}/v1`;
+		if (lanMode) flags += ' --lan';
+		if (tlsMode) flags += ' --tls';
+
+		const cmd = `cd /home/akarta/Projects/Metis && (prosopon/.venv/bin/prosopon serve --host ${host} --port ${port} ${flags} || uv run prosopon serve --host ${host} --port ${port} ${flags} &) && echo "[Metis] Prosopon starting on ${host}:${port}..."`;
+		executeCommandInStackTerminal(cmd, `Starting Prosopon on port ${port}...`);
 	};
 
 	const stopProsopon = () => {
@@ -207,9 +255,20 @@ export const useStackController = () => {
 	};
 
 	const restartProsopon = () => {
+		const host = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
+		const lanMode = storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false);
+		const tlsMode = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
+		const mockMode = storageService.getBoolean('metis.prosopon.mockMode', StorageScope.APPLICATION, false);
+
+		let flags = mockMode ? '--mock' : `--no-mock --kybernetes-url http://127.0.0.1:${kybPort}/v1`;
+		if (lanMode) flags += ' --lan';
+		if (tlsMode) flags += ' --tls';
+
 		executeCommandInStackTerminal(
-			'pkill -f "prosopon.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (prosopon/.venv/bin/prosopon serve --port 8000 --kybernetes-url http://127.0.0.1:8081/v1 --no-mock || uv run prosopon serve --port 8000 --kybernetes-url http://127.0.0.1:8081/v1 --no-mock &) && echo "[Metis] Prosopon restarted."',
-			'Restarting Prosopon Web Interface...'
+			`pkill -f "prosopon.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && (prosopon/.venv/bin/prosopon serve --host ${host} --port ${port} ${flags} || uv run prosopon serve --host ${host} --port ${port} ${flags} &) && echo "[Metis] Prosopon restarted on ${host}:${port}."`,
+			`Restarting Prosopon on port ${port}...`
 		);
 	};
 
@@ -226,10 +285,25 @@ export const useStackController = () => {
 	};
 
 	const openProsopon = () => {
+		const host = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const tls = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
+		const proto = tls ? 'https' : 'http';
+		const url = `${proto}://${host}:${port}`;
 		try {
-			nativeHostService.openExternal('http://127.0.0.1:8000');
+			nativeHostService.openExternal(url);
 		} catch {
-			window.open('http://127.0.0.1:8000', '_blank');
+			window.open(url, '_blank');
+		}
+	};
+
+	const focusStackTerminal = () => {
+		let term = terminalService.instances.find(t => t.title.includes('Metis Sovereign Stack') || t.title.includes('Metis Stack'));
+		if (term) {
+			terminalService.setActiveInstance(term);
+			terminalService.showPanel(true);
+		} else {
+			executeCommandInStackTerminal('echo "[Metis] Sovereign Stack Terminal Ready."', 'Opening Metis Stack Terminal...');
 		}
 	};
 
@@ -250,6 +324,7 @@ export const useStackController = () => {
 		rollbackOdyssey,
 		rebuildMemoryIndex,
 		openProsopon,
+		focusStackTerminal,
 	};
 };
 
@@ -276,13 +351,38 @@ const StatusBadge = ({ online, latency }: { online: boolean; latency: number | n
 export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab: string) => void }) => {
 	const { status, isProbing, probeStack } = useMetisStackStatus();
 	const controller = useStackController();
+	const accessor = useAccessor();
+	const storageService = accessor.get('IStorageService');
 
-	const allRunning = status.hestia.online && status.kybernetes.online && status.prosopon.online;
+	const [mockMode, setMockMode] = useState(
+		storageService.getBoolean('metis.stack.mockMode', StorageScope.APPLICATION, false)
+	);
+	const [lanMode, setLanMode] = useState(
+		storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false)
+	);
+	const [tlsMode, setTlsMode] = useState(
+		storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false)
+	);
+
+	const toggleMock = (v: boolean) => {
+		setMockMode(v);
+		storageService.store('metis.stack.mockMode', v, StorageScope.APPLICATION, StorageTarget.USER);
+	};
+
+	const toggleLan = (v: boolean) => {
+		setLanMode(v);
+		storageService.store('metis.prosopon.lanMode', v, StorageScope.APPLICATION, StorageTarget.USER);
+	};
+
+	const toggleTls = (v: boolean) => {
+		setTlsMode(v);
+		storageService.store('metis.prosopon.tlsMode', v, StorageScope.APPLICATION, StorageTarget.USER);
+	};
 
 	return (
 		<div className="flex flex-col gap-6 max-w-[800px]">
 			{/* Master Header Card */}
-			<div className="bg-gradient-to-r from-indigo-950/50 via-slate-900 to-cyan-950/40 border border-indigo-500/30 rounded-xl p-6 backdrop-blur-md shadow-lg">
+			<div className="bg-gradient-to-r from-indigo-950/60 via-slate-900 to-cyan-950/50 border border-indigo-500/30 rounded-xl p-6 backdrop-blur-md shadow-xl">
 				<div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
 					<div className="flex items-center gap-3">
 						<span className="text-3xl">🏛️</span>
@@ -291,7 +391,7 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 								Metis Sovereign Command & Control
 							</h3>
 							<p className="text-xs text-indigo-300">
-								Unified Local AI Orchestration Hub • Arch Linux Local Engine • Zero Cloud Egress
+								Arch Linux Native Local AI Architecture • Zero Telemetry • 100% Air-Gapped Ready
 							</p>
 						</div>
 					</div>
@@ -338,7 +438,14 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 						className="flex items-center gap-2 bg-void-bg-2 hover:bg-void-bg-1 border border-void-border-2 text-void-fg-1 font-medium text-xs px-4 py-2 rounded-lg shadow-sm transition active:scale-95 ml-auto"
 					>
 						<Activity className="size-3.5" />
-						Doctor Diagnostics
+						Doctor
+					</button>
+					<button
+						onClick={controller.focusStackTerminal}
+						className="flex items-center gap-2 bg-void-bg-2 hover:bg-void-bg-1 border border-void-border-2 text-void-fg-1 font-medium text-xs px-4 py-2 rounded-lg shadow-sm transition active:scale-95"
+					>
+						<Terminal className="size-3.5" />
+						Logs Terminal
 					</button>
 					<button
 						onClick={controller.openProsopon}
@@ -347,6 +454,39 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 						<ExternalLink className="size-3.5" />
 						Open Web Studio
 					</button>
+				</div>
+			</div>
+
+			{/* Global Stack Run Flags */}
+			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-4 flex flex-col gap-3">
+				<h4 className="font-semibold text-void-fg-1 text-xs uppercase tracking-wider text-void-fg-3 flex items-center gap-2">
+					<Sliders className="size-3.5 text-cyan-400" />
+					Stack Launch Configuration Flags
+				</h4>
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+					<div className="flex items-center justify-between p-2.5 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="text-xs font-semibold text-void-fg-1">Standalone Mock Mode</div>
+							<div className="text-[10px] text-void-fg-3">Run Prosopon with mock orchestrator</div>
+						</div>
+						<VoidSwitch value={mockMode} onChange={toggleMock} />
+					</div>
+
+					<div className="flex items-center justify-between p-2.5 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="text-xs font-semibold text-void-fg-1">LAN Mode (0.0.0.0)</div>
+							<div className="text-[10px] text-void-fg-3">Expose to mobile devices on WiFi</div>
+						</div>
+						<VoidSwitch value={lanMode} onChange={toggleLan} />
+					</div>
+
+					<div className="flex items-center justify-between p-2.5 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="text-xs font-semibold text-void-fg-1">Self-Signed TLS</div>
+							<div className="text-[10px] text-void-fg-3">HTTPS for mobile microphone access</div>
+						</div>
+						<VoidSwitch value={tlsMode} onChange={toggleTls} />
+					</div>
 				</div>
 			</div>
 
@@ -376,7 +516,7 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 								Start
 							</button>
 						)}
-						<button onClick={controller.restartHestia} className="p-1 bg-void-bg-1 hover:bg-void-bg-2 text-void-fg-2 rounded border border-void-border-2">
+						<button onClick={controller.restartHestia} title="Restart Hestia" className="p-1 bg-void-bg-1 hover:bg-void-bg-2 text-void-fg-2 rounded border border-void-border-2">
 							<RotateCcw className="size-3" />
 						</button>
 						{onSelectTab && (
@@ -411,7 +551,7 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 								Start
 							</button>
 						)}
-						<button onClick={controller.restartKybernetes} className="p-1 bg-void-bg-1 hover:bg-void-bg-2 text-void-fg-2 rounded border border-void-border-2">
+						<button onClick={controller.restartKybernetes} title="Restart Kybernetes" className="p-1 bg-void-bg-1 hover:bg-void-bg-2 text-void-fg-2 rounded border border-void-border-2">
 							<RotateCcw className="size-3" />
 						</button>
 						{onSelectTab && (
@@ -434,7 +574,7 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 					<p className="text-xs text-void-fg-3">Zero-dependency web studio & PIN-authenticated mobile pairing client.</p>
 					<div className="text-[11px] font-mono text-void-fg-2 bg-void-bg-1/70 px-2 py-1 rounded border border-void-border-2 flex justify-between">
 						<span>Port: 8000</span>
-						<span>Web / PTT Audio</span>
+						<span>Web / Voice</span>
 					</div>
 					<div className="flex items-center gap-1.5 pt-2 border-t border-void-border-2">
 						{status.prosopon.online ? (
@@ -446,7 +586,7 @@ export const MetisControlCenterSection = ({ onSelectTab }: { onSelectTab?: (tab:
 								Start
 							</button>
 						)}
-						<button onClick={controller.restartProsopon} className="p-1 bg-void-bg-1 hover:bg-void-bg-2 text-void-fg-2 rounded border border-void-border-2">
+						<button onClick={controller.restartProsopon} title="Restart Prosopon" className="p-1 bg-void-bg-1 hover:bg-void-bg-2 text-void-fg-2 rounded border border-void-border-2">
 							<RotateCcw className="size-3" />
 						</button>
 						{onSelectTab && (
@@ -527,17 +667,51 @@ export const HestiaSection = () => {
 
 	const metisSettings = settingsState.settingsOfProvider.metis;
 
+	const [listenHost, setListenHost] = useState(
+		storageService.get('metis.hestia.host', StorageScope.APPLICATION, '127.0.0.1')
+	);
+	const [listenPort, setListenPort] = useState(
+		storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080')
+	);
+	const [configPath, setConfigPath] = useState(
+		storageService.get('metis.hestia.configPath', StorageScope.APPLICATION, 'hestia/hestia.yaml')
+	);
+	const [modelsPath, setModelsPath] = useState(
+		storageService.get('metis.hestia.modelsPath', StorageScope.APPLICATION, 'hestia/models.yaml')
+	);
+	const [llamacppBinary, setLlamacppBinary] = useState(
+		storageService.get('metis.hestia.llamacppBinary', StorageScope.APPLICATION, '/home/akarta/.unsloth/llama.cpp/llama-server')
+	);
+	const [backendPortStart, setBackendPortStart] = useState(
+		storageService.get('metis.hestia.backendPortStart', StorageScope.APPLICATION, '9000')
+	);
+	const [backendPortEnd, setBackendPortEnd] = useState(
+		storageService.get('metis.hestia.backendPortEnd', StorageScope.APPLICATION, '9019')
+	);
+	const [idleTimeout, setIdleTimeout] = useState(
+		storageService.get('metis.hestia.idleTimeout', StorageScope.APPLICATION, '600')
+	);
+	const [logLevel, setLogLevel] = useState(
+		storageService.get('metis.hestia.logLevel', StorageScope.APPLICATION, 'INFO')
+	);
+
 	const [contextLength, setContextLength] = useState(
 		storageService.get('metis.hestia.contextLength', StorageScope.APPLICATION, '8192')
 	);
 	const [temperature, setTemperature] = useState(
-		storageService.get('metis.hestia.temperature', StorageScope.APPLICATION, '0.2')
+		storageService.get('metis.hestia.temperature', StorageScope.APPLICATION, '0.7')
 	);
 	const [topP, setTopP] = useState(
 		storageService.get('metis.hestia.topP', StorageScope.APPLICATION, '0.9')
 	);
-	const [vramBudget, setVramBudget] = useState(
-		storageService.get('metis.hestia.vramBudget', StorageScope.APPLICATION, '12GB')
+	const [topK, setTopK] = useState(
+		storageService.get('metis.hestia.topK', StorageScope.APPLICATION, '40')
+	);
+	const [repeatPenalty, setRepeatPenalty] = useState(
+		storageService.get('metis.hestia.repeatPenalty', StorageScope.APPLICATION, '1.1')
+	);
+	const [gpuTarget, setGpuTarget] = useState(
+		storageService.get('metis.hestia.gpuTarget', StorageScope.APPLICATION, 'rtx-5060-ti')
 	);
 
 	const updateStorage = (key: string, val: string, setter: (v: string) => void) => {
@@ -566,37 +740,151 @@ export const HestiaSection = () => {
 							Start
 						</button>
 					)}
-					<button onClick={controller.restartHestia} className="p-1.5 text-xs bg-void-bg-1 border border-void-border-2 text-void-fg-2 hover:text-white rounded-lg">
+					<button onClick={controller.restartHestia} title="Restart Hestia" className="p-1.5 text-xs bg-void-bg-1 border border-void-border-2 text-void-fg-2 hover:text-white rounded-lg">
 						<RotateCcw className="size-3.5" />
 					</button>
 				</div>
 			</div>
 
-			{/* Configuration Options */}
-			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-5 flex flex-col gap-5">
+			{/* Service Run Command Bar */}
+			<div className="p-3 bg-void-bg-1 border border-void-border-2 rounded-xl flex items-center justify-between text-xs font-mono">
+				<span className="text-void-fg-3 truncate">
+					hestia serve --host {listenHost} --port {listenPort} --config {configPath} --models {modelsPath}
+				</span>
+				<span className="text-[10px] bg-void-bg-2 px-2 py-0.5 rounded text-cyan-400 border border-void-border-2 shrink-0 ml-2">
+					CLI Command
+				</span>
+			</div>
+
+			{/* Service Networking & File Paths */}
+			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-5 flex flex-col gap-4">
 				<h4 className="font-semibold text-void-fg-1 text-sm border-b border-void-border-2 pb-2">
-					Connection & Service Parameters
+					Service Run Settings & Binary Paths
 				</h4>
 
-				<div className="flex flex-col gap-1.5">
-					<label className="text-xs text-void-fg-2 font-medium">Hestia Endpoint URL</label>
-					<input
-						type="text"
-						value={metisSettings?.endpoint || 'http://127.0.0.1:8080/v1'}
-						onChange={(e) => voidSettingsService.setSettingOfProvider('metis', 'endpoint', e.target.value)}
-						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 focus:border-indigo-500 font-mono"
-					/>
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Listen Host</label>
+						<input
+							type="text"
+							value={listenHost}
+							onChange={(e) => updateStorage('metis.hestia.host', e.target.value, setListenHost)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Listen Port</label>
+						<input
+							type="number"
+							value={listenPort}
+							onChange={(e) => updateStorage('metis.hestia.port', e.target.value, setListenPort)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
 				</div>
 
 				<div className="flex flex-col gap-1.5">
-					<label className="text-xs text-void-fg-2 font-medium">API Key / Service Token</label>
+					<label className="text-xs text-void-fg-2 font-medium">llama-server Binary Path</label>
 					<input
-						type="password"
-						value={metisSettings?.apiKey || 'metis-sovereign'}
-						onChange={(e) => voidSettingsService.setSettingOfProvider('metis', 'apiKey', e.target.value)}
-						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 focus:border-indigo-500 font-mono"
+						type="text"
+						value={llamacppBinary}
+						onChange={(e) => updateStorage('metis.hestia.llamacppBinary', e.target.value, setLlamacppBinary)}
+						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
 					/>
 				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Hestia Config YAML</label>
+						<input
+							type="text"
+							value={configPath}
+							onChange={(e) => updateStorage('metis.hestia.configPath', e.target.value, setConfigPath)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Models Registry YAML</label>
+						<input
+							type="text"
+							value={modelsPath}
+							onChange={(e) => updateStorage('metis.hestia.modelsPath', e.target.value, setModelsPath)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Backend Port Start</label>
+						<input
+							type="number"
+							value={backendPortStart}
+							onChange={(e) => updateStorage('metis.hestia.backendPortStart', e.target.value, setBackendPortStart)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Backend Port End</label>
+						<input
+							type="number"
+							value={backendPortEnd}
+							onChange={(e) => updateStorage('metis.hestia.backendPortEnd', e.target.value, setBackendPortEnd)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Idle Timeout (seconds)</label>
+						<input
+							type="number"
+							value={idleTimeout}
+							onChange={(e) => updateStorage('metis.hestia.idleTimeout', e.target.value, setIdleTimeout)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">GPU Hardware Target</label>
+						<select
+							value={gpuTarget}
+							onChange={(e) => updateStorage('metis.hestia.gpuTarget', e.target.value, setGpuTarget)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 focus:border-indigo-500"
+						>
+							<option value="rtx-5060-ti">NVIDIA RTX 5060 Ti (CUDA 12.8)</option>
+							<option value="cuda">Generic NVIDIA GPU (CUDA)</option>
+							<option value="rocm">AMD Radeon (ROCm)</option>
+							<option value="vulkan">Vulkan Universal</option>
+							<option value="cpu">CPU AVX2 / AVX-512</option>
+						</select>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Log Level</label>
+						<select
+							value={logLevel}
+							onChange={(e) => updateStorage('metis.hestia.logLevel', e.target.value, setLogLevel)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 focus:border-indigo-500"
+						>
+							<option value="DEBUG">DEBUG (Detailed llama traces)</option>
+							<option value="INFO">INFO (Standard production)</option>
+							<option value="WARNING">WARNING (Quiet)</option>
+							<option value="ERROR">ERROR (Errors only)</option>
+						</select>
+					</div>
+				</div>
+			</div>
+
+			{/* Sampling Parameters */}
+			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-5 flex flex-col gap-4">
+				<h4 className="font-semibold text-void-fg-1 text-sm border-b border-void-border-2 pb-2">
+					Inference Sampling & Context Hyperparameters
+				</h4>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div className="flex flex-col gap-1.5">
@@ -614,22 +902,18 @@ export const HestiaSection = () => {
 					</div>
 
 					<div className="flex flex-col gap-1.5">
-						<label className="text-xs text-void-fg-2 font-medium">VRAM Budget Target</label>
-						<select
-							value={vramBudget}
-							onChange={(e) => updateStorage('metis.hestia.vramBudget', e.target.value, setVramBudget)}
-							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 focus:border-indigo-500"
-						>
-							<option value="8GB">8 GB (RTX 3070 / 4060)</option>
-							<option value="12GB">12 GB (RTX 5060 Ti / 3060)</option>
-							<option value="16GB">16 GB (RTX 4080 / 5080)</option>
-							<option value="24GB">24 GB (RTX 3090 / 4090)</option>
-							<option value="CPU">CPU Only (GGUF llama.cpp)</option>
-						</select>
+						<label className="text-xs text-void-fg-2 font-medium">Repeat Penalty</label>
+						<input
+							type="number"
+							step="0.05"
+							value={repeatPenalty}
+							onChange={(e) => updateStorage('metis.hestia.repeatPenalty', e.target.value, setRepeatPenalty)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
 					</div>
 				</div>
 
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 					<div className="flex flex-col gap-1.5">
 						<div className="flex justify-between text-xs text-void-fg-2 font-medium">
 							<span>Temperature</span>
@@ -638,7 +922,7 @@ export const HestiaSection = () => {
 						<input
 							type="range"
 							min="0.0"
-							max="1.0"
+							max="1.5"
 							step="0.05"
 							value={temperature}
 							onChange={(e) => updateStorage('metis.hestia.temperature', e.target.value, setTemperature)}
@@ -648,7 +932,7 @@ export const HestiaSection = () => {
 
 					<div className="flex flex-col gap-1.5">
 						<div className="flex justify-between text-xs text-void-fg-2 font-medium">
-							<span>Top-P Sampling</span>
+							<span>Top-P</span>
 							<span className="font-mono text-cyan-400">{topP}</span>
 						</div>
 						<input
@@ -661,6 +945,22 @@ export const HestiaSection = () => {
 							className="w-full accent-cyan-500"
 						/>
 					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<div className="flex justify-between text-xs text-void-fg-2 font-medium">
+							<span>Top-K</span>
+							<span className="font-mono text-cyan-400">{topK}</span>
+						</div>
+						<input
+							type="range"
+							min="1"
+							max="100"
+							step="1"
+							value={topK}
+							onChange={(e) => updateStorage('metis.hestia.topK', e.target.value, setTopK)}
+							className="w-full accent-cyan-500"
+						/>
+					</div>
 				</div>
 			</div>
 
@@ -669,19 +969,20 @@ export const HestiaSection = () => {
 				<h4 className="font-semibold text-void-fg-1 text-sm">Installed Sovereign Models in Hestia</h4>
 				<div className="flex flex-col gap-2">
 					{[
-						{ id: 'gemma-4-26b-a4b-abliterated', desc: 'Primary Reasoning & Coding Model (Q3_K_M)', type: 'Chat/Reasoning' },
-						{ id: 'qwen2.5-14b-instruct', desc: 'Fast Fill-In-The-Middle & Inline Edits (Q4_K_M)', type: 'FIM/Edit' },
-						{ id: 'llama-3.1-8b-instruct', desc: 'Lightweight Sovereign Chat Model (Q4_K_M)', type: 'Chat' },
-						{ id: 'nomic-embed-text', desc: 'Dense Vector Embeddings for Stoma LTHCM (Q8_0)', type: 'Embedding' },
+						{ id: 'gemma-4-26b-a4b-abliterated', desc: 'Primary Reasoning & Coding Model (Q3_K_M)', type: 'Chat/Reasoning', path: '/home/akarta/models/Gemma-4-26B-A4B-Abliterated.Q3_K_M.gguf' },
+						{ id: 'qwen2.5-14b-instruct', desc: 'Fast Fill-In-The-Middle & Inline Edits (Q4_K_M)', type: 'FIM/Edit', path: '/home/akarta/.ollama/models/.studio_links/2a9a1708be/qwen2.5-14b.gguf' },
+						{ id: 'llama-3.1-8b-instruct', desc: 'Lightweight Sovereign Chat Model (Q4_K_M)', type: 'Chat', path: '/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf' },
+						{ id: 'nomic-embed-text', desc: 'Dense Vector Embeddings for Stoma LTHCM (Q8_0)', type: 'Embedding', path: '/models/nomic-embed-text-v1.5-Q8_0.gguf' },
 					].map((m) => (
-						<div key={m.id} className="p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg flex items-center justify-between">
-							<div>
+						<div key={m.id} className="p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg flex flex-col gap-1">
+							<div className="flex items-center justify-between">
 								<div className="font-mono text-xs font-semibold text-white">{m.id}</div>
-								<div className="text-[11px] text-void-fg-3">{m.desc}</div>
+								<span className="text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-2 py-0.5 rounded">
+									{m.type}
+								</span>
 							</div>
-							<span className="text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-2 py-0.5 rounded">
-								{m.type}
-							</span>
+							<div className="text-[11px] text-void-fg-3">{m.desc}</div>
+							<div className="text-[10px] font-mono text-void-fg-4 truncate">{m.path}</div>
 						</div>
 					))}
 				</div>
@@ -703,6 +1004,24 @@ export const KybernetesSection = () => {
 
 	const metisSettings = settingsState.settingsOfProvider.metis;
 
+	const [host, setHost] = useState(
+		storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1')
+	);
+	const [port, setPort] = useState(
+		storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081')
+	);
+	const [dbPath, setDbPath] = useState(
+		storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db')
+	);
+	const [adminToken, setAdminToken] = useState(
+		storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token')
+	);
+	const [serviceToken, setServiceToken] = useState(
+		storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token')
+	);
+	const [adminEnabled, setAdminEnabled] = useState(
+		storageService.getBoolean('metis.kybernetes.adminEnabled', StorageScope.APPLICATION, true)
+	);
 	const [maxFsmSteps, setMaxFsmSteps] = useState(
 		storageService.get('metis.kybernetes.maxFsmSteps', StorageScope.APPLICATION, '25')
 	);
@@ -712,15 +1031,13 @@ export const KybernetesSection = () => {
 	const [enableWorktrees, setEnableWorktrees] = useState(
 		storageService.getBoolean('metis.kybernetes.enableWorktrees', StorageScope.APPLICATION, true)
 	);
+	const [worktreesDir, setWorktreesDir] = useState(
+		storageService.get('metis.kybernetes.worktreesDir', StorageScope.APPLICATION, '.metis/worktrees')
+	);
 
 	const updateStorage = (key: string, val: string, setter: (v: string) => void) => {
 		setter(val);
 		storageService.store(key, val, StorageScope.APPLICATION, StorageTarget.USER);
-	};
-
-	const toggleWorktrees = (val: boolean) => {
-		setEnableWorktrees(val);
-		storageService.store('metis.kybernetes.enableWorktrees', val, StorageScope.APPLICATION, StorageTarget.USER);
 	};
 
 	return (
@@ -744,26 +1061,90 @@ export const KybernetesSection = () => {
 							Start
 						</button>
 					)}
-					<button onClick={controller.restartKybernetes} className="p-1.5 text-xs bg-void-bg-1 border border-void-border-2 text-void-fg-2 hover:text-white rounded-lg">
+					<button onClick={controller.restartKybernetes} title="Restart Kybernetes" className="p-1.5 text-xs bg-void-bg-1 border border-void-border-2 text-void-fg-2 hover:text-white rounded-lg">
 						<RotateCcw className="size-3.5" />
 					</button>
 				</div>
 			</div>
 
+			{/* Service Run Command Bar */}
+			<div className="p-3 bg-void-bg-1 border border-void-border-2 rounded-xl flex items-center justify-between text-xs font-mono">
+				<span className="text-void-fg-3 truncate">
+					kybernetes serve --host {host} --port {port} --db-path {dbPath} --memory-root .stoma
+				</span>
+				<span className="text-[10px] bg-void-bg-2 px-2 py-0.5 rounded text-cyan-400 border border-void-border-2 shrink-0 ml-2">
+					CLI Command
+				</span>
+			</div>
+
 			{/* Configuration */}
 			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-5 flex flex-col gap-5">
 				<h4 className="font-semibold text-void-fg-1 text-sm border-b border-void-border-2 pb-2">
-					Orchestration Parameters
+					Networking, Database & Upstream Parameters
 				</h4>
 
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Bind Host Address</label>
+						<input
+							type="text"
+							value={host}
+							onChange={(e) => updateStorage('metis.kybernetes.host', e.target.value, setHost)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Bind Port Number</label>
+						<input
+							type="number"
+							value={port}
+							onChange={(e) => updateStorage('metis.kybernetes.port', e.target.value, setPort)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+				</div>
+
 				<div className="flex flex-col gap-1.5">
-					<label className="text-xs text-void-fg-2 font-medium">Kybernetes Orchestrator Endpoint</label>
+					<label className="text-xs text-void-fg-2 font-medium">Hestia Upstream Base URL</label>
 					<input
 						type="text"
-						value={metisSettings?.orchestratorEndpoint || 'http://127.0.0.1:8081/v1'}
-						onChange={(e) => voidSettingsService.setSettingOfProvider('metis', 'orchestratorEndpoint', e.target.value)}
-						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 focus:border-indigo-500 font-mono"
+						value={metisSettings?.endpoint || 'http://127.0.0.1:8080/v1'}
+						onChange={(e) => voidSettingsService.setSettingOfProvider('metis', 'endpoint', e.target.value)}
+						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
 					/>
+				</div>
+
+				<div className="flex flex-col gap-1.5">
+					<label className="text-xs text-void-fg-2 font-medium">Task Budget SQLite DB Path</label>
+					<input
+						type="text"
+						value={dbPath}
+						onChange={(e) => updateStorage('metis.kybernetes.dbPath', e.target.value, setDbPath)}
+						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+					/>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Admin Bearer Token (/v1/admin/*)</label>
+						<input
+							type="password"
+							value={adminToken}
+							onChange={(e) => updateStorage('metis.kybernetes.adminToken', e.target.value, setAdminToken)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Service Bearer Token (/v1/chat)</label>
+						<input
+							type="password"
+							value={serviceToken}
+							onChange={(e) => updateStorage('metis.kybernetes.serviceToken', e.target.value, setServiceToken)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -796,14 +1177,31 @@ export const KybernetesSection = () => {
 				</div>
 
 				{/* Ephemeral Worktree Toggle */}
-				<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
-					<div>
-						<div className="font-semibold text-xs text-void-fg-1">Ephemeral Git Worktrees</div>
-						<div className="text-[11px] text-void-fg-3">
-							Run subagents in isolated git worktrees at <code className="font-mono text-cyan-300">.metis/worktrees/</code> to prevent dirty tree pollution.
+				<div className="flex flex-col gap-3 p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+					<div className="flex items-center justify-between">
+						<div>
+							<div className="font-semibold text-xs text-void-fg-1">Ephemeral Git Worktrees</div>
+							<div className="text-[11px] text-void-fg-3">
+								Run subagents in isolated git worktrees to prevent dirty tree pollution.
+							</div>
 						</div>
+						<VoidSwitch
+							value={enableWorktrees}
+							onChange={(v) => {
+								setEnableWorktrees(v);
+								storageService.store('metis.kybernetes.enableWorktrees', v, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+						/>
 					</div>
-					<VoidSwitch value={enableWorktrees} onChange={toggleWorktrees} />
+					<div className="flex flex-col gap-1">
+						<label className="text-[11px] text-void-fg-3 font-medium">Worktrees Base Directory</label>
+						<input
+							type="text"
+							value={worktreesDir}
+							onChange={(e) => updateStorage('metis.kybernetes.worktreesDir', e.target.value, setWorktreesDir)}
+							className="bg-void-bg-2 border border-void-border-2 rounded px-2.5 py-1 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -826,6 +1224,9 @@ export const PhylaxSection = () => {
 	);
 	const [policyPath, setPolicyPath] = useState(
 		storageService.get('metis.phylax.policyPath', StorageScope.APPLICATION, 'policies/default_policy.yaml')
+	);
+	const [auditLogPath, setAuditLogPath] = useState(
+		storageService.get('metis.phylax.auditLogPath', StorageScope.APPLICATION, '.metis/audit_ledger.jsonl')
 	);
 
 	const toggleDefaultDeny = (val: boolean) => {
@@ -866,17 +1267,32 @@ export const PhylaxSection = () => {
 					Security Policy Configuration
 				</h4>
 
-				<div className="flex flex-col gap-1.5">
-					<label className="text-xs text-void-fg-2 font-medium">Policy Specification YAML File</label>
-					<input
-						type="text"
-						value={policyPath}
-						onChange={(e) => {
-							setPolicyPath(e.target.value);
-							storageService.store('metis.phylax.policyPath', e.target.value, StorageScope.APPLICATION, StorageTarget.USER);
-						}}
-						className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-amber-500"
-					/>
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Policy Specification YAML File</label>
+						<input
+							type="text"
+							value={policyPath}
+							onChange={(e) => {
+								setPolicyPath(e.target.value);
+								storageService.store('metis.phylax.policyPath', e.target.value, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-amber-500"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Audit Ledger JSONL Path</label>
+						<input
+							type="text"
+							value={auditLogPath}
+							onChange={(e) => {
+								setAuditLogPath(e.target.value);
+								storageService.store('metis.phylax.auditLogPath', e.target.value, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-amber-500"
+						/>
+					</div>
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -952,8 +1368,14 @@ export const DianoiaSection = () => {
 	const [autoCheckpoint, setAutoCheckpoint] = useState(
 		storageService.getBoolean('metis.dianoia.autoCheckpoint', StorageScope.APPLICATION, true)
 	);
+	const [checkpointPattern, setCheckpointPattern] = useState(
+		storageService.get('metis.dianoia.checkpointPattern', StorageScope.APPLICATION, 'refs/odyssey/checkpoint_{n}')
+	);
 	const [enableHermes, setEnableHermes] = useState(
 		storageService.getBoolean('metis.dianoia.enableHermes', StorageScope.APPLICATION, true)
+	);
+	const [skillsDir, setSkillsDir] = useState(
+		storageService.get('metis.dianoia.skillsDir', StorageScope.APPLICATION, '.metis/skills')
 	);
 
 	return (
@@ -996,32 +1418,60 @@ export const DianoiaSection = () => {
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
-						<div>
-							<div className="font-semibold text-xs text-void-fg-1">Odyssey Auto-Checkpoints</div>
-							<div className="text-[11px] text-void-fg-3">Snapshot git branch prior to agent write.</div>
+					<div className="flex flex-col gap-2 p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div className="flex items-center justify-between">
+							<div>
+								<div className="font-semibold text-xs text-void-fg-1">Odyssey Auto-Checkpoints</div>
+								<div className="text-[11px] text-void-fg-3">Snapshot git branch prior to agent write.</div>
+							</div>
+							<VoidSwitch
+								value={autoCheckpoint}
+								onChange={(v) => {
+									setAutoCheckpoint(v);
+									storageService.store('metis.dianoia.autoCheckpoint', v, StorageScope.APPLICATION, StorageTarget.USER);
+								}}
+							/>
 						</div>
-						<VoidSwitch
-							value={autoCheckpoint}
-							onChange={(v) => {
-								setAutoCheckpoint(v);
-								storageService.store('metis.dianoia.autoCheckpoint', v, StorageScope.APPLICATION, StorageTarget.USER);
-							}}
-						/>
+						<div className="flex flex-col gap-1 pt-1 border-t border-void-border-2">
+							<label className="text-[10px] text-void-fg-3 font-medium">Ref Pattern</label>
+							<input
+								type="text"
+								value={checkpointPattern}
+								onChange={(e) => {
+									setCheckpointPattern(e.target.value);
+									storageService.store('metis.dianoia.checkpointPattern', e.target.value, StorageScope.APPLICATION, StorageTarget.USER);
+								}}
+								className="bg-void-bg-2 border border-void-border-2 rounded px-2 py-0.5 text-xs text-void-fg-1 font-mono"
+							/>
+						</div>
 					</div>
 
-					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
-						<div>
-							<div className="font-semibold text-xs text-void-fg-1">Hermes Skill Synthesis</div>
-							<div className="text-[11px] text-void-fg-3">Auto-crystallize verified skills to <code className="font-mono text-cyan-300">.metis/skills/</code>.</div>
+					<div className="flex flex-col gap-2 p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div className="flex items-center justify-between">
+							<div>
+								<div className="font-semibold text-xs text-void-fg-1">Hermes Skill Synthesis</div>
+								<div className="text-[11px] text-void-fg-3">Auto-crystallize verified skills.</div>
+							</div>
+							<VoidSwitch
+								value={enableHermes}
+								onChange={(v) => {
+									setEnableHermes(v);
+									storageService.store('metis.dianoia.enableHermes', v, StorageScope.APPLICATION, StorageTarget.USER);
+								}}
+							/>
 						</div>
-						<VoidSwitch
-							value={enableHermes}
-							onChange={(v) => {
-								setEnableHermes(v);
-								storageService.store('metis.dianoia.enableHermes', v, StorageScope.APPLICATION, StorageTarget.USER);
-							}}
-						/>
+						<div className="flex flex-col gap-1 pt-1 border-t border-void-border-2">
+							<label className="text-[10px] text-void-fg-3 font-medium">Learned Skills Directory</label>
+							<input
+								type="text"
+								value={skillsDir}
+								onChange={(e) => {
+									setSkillsDir(e.target.value);
+									storageService.store('metis.dianoia.skillsDir', e.target.value, StorageScope.APPLICATION, StorageTarget.USER);
+								}}
+								className="bg-void-bg-2 border border-void-border-2 rounded px-2 py-0.5 text-xs text-void-fg-1 font-mono"
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -1050,12 +1500,44 @@ export const ProsoponSection = () => {
 	const { status } = useMetisStackStatus();
 	const controller = useStackController();
 
+	const [host, setHost] = useState(
+		storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1')
+	);
+	const [port, setPort] = useState(
+		storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000')
+	);
+	const [lanMode, setLanMode] = useState(
+		storageService.getBoolean('metis.prosopon.lanMode', StorageScope.APPLICATION, false)
+	);
+	const [tlsMode, setTlsMode] = useState(
+		storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false)
+	);
+	const [mockMode, setMockMode] = useState(
+		storageService.getBoolean('metis.prosopon.mockMode', StorageScope.APPLICATION, false)
+	);
 	const [requirePin, setRequirePin] = useState(
 		storageService.getBoolean('metis.prosopon.requirePin', StorageScope.APPLICATION, false)
+	);
+	const [dataDir, setDataDir] = useState(
+		storageService.get('metis.prosopon.dataDir', StorageScope.APPLICATION, './data')
+	);
+	const [sessionExpiry, setSessionExpiry] = useState(
+		storageService.get('metis.prosopon.sessionExpiry', StorageScope.APPLICATION, '72')
 	);
 	const [audioFeedback, setAudioFeedback] = useState(
 		storageService.getBoolean('metis.prosopon.audioFeedback', StorageScope.APPLICATION, true)
 	);
+	const [whisperBinary, setWhisperBinary] = useState(
+		storageService.get('metis.prosopon.whisperBinary', StorageScope.APPLICATION, 'whisper.cpp')
+	);
+	const [piperBinary, setPiperBinary] = useState(
+		storageService.get('metis.prosopon.piperBinary', StorageScope.APPLICATION, 'piper')
+	);
+
+	const updateStorage = (key: string, val: string, setter: (v: string) => void) => {
+		setter(val);
+		storageService.store(key, val, StorageScope.APPLICATION, StorageTarget.USER);
+	};
 
 	return (
 		<div className="flex flex-col gap-6 max-w-[800px]">
@@ -1078,10 +1560,20 @@ export const ProsoponSection = () => {
 							Start
 						</button>
 					)}
-					<button onClick={controller.restartProsopon} className="p-1.5 text-xs bg-void-bg-1 border border-void-border-2 text-void-fg-2 hover:text-white rounded-lg">
+					<button onClick={controller.restartProsopon} title="Restart Prosopon" className="p-1.5 text-xs bg-void-bg-1 border border-void-border-2 text-void-fg-2 hover:text-white rounded-lg">
 						<RotateCcw className="size-3.5" />
 					</button>
 				</div>
+			</div>
+
+			{/* Service Run Command Bar */}
+			<div className="p-3 bg-void-bg-1 border border-void-border-2 rounded-xl flex items-center justify-between text-xs font-mono">
+				<span className="text-void-fg-3 truncate">
+					prosopon serve --host {host} --port {port} {lanMode ? '--lan' : ''} {tlsMode ? '--tls' : ''} {mockMode ? '--mock' : '--no-mock'}
+				</span>
+				<span className="text-[10px] bg-void-bg-2 px-2 py-0.5 rounded text-cyan-400 border border-void-border-2 shrink-0 ml-2">
+					CLI Command
+				</span>
 			</div>
 
 			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-5 flex flex-col gap-5">
@@ -1092,7 +1584,9 @@ export const ProsoponSection = () => {
 				<div className="flex items-center justify-between p-4 bg-void-bg-1 rounded-lg border border-void-border-2">
 					<div>
 						<div className="font-semibold text-xs text-white">Local Web Studio URL</div>
-						<div className="font-mono text-cyan-400 text-sm mt-0.5">http://127.0.0.1:8000</div>
+						<div className="font-mono text-cyan-400 text-sm mt-0.5">
+							{tlsMode ? 'https' : 'http'}://{host}:{port}
+						</div>
 					</div>
 					<button
 						onClick={controller.openProsopon}
@@ -1104,10 +1598,60 @@ export const ProsoponSection = () => {
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Bind Host Address</label>
+						<input
+							type="text"
+							value={host}
+							onChange={(e) => updateStorage('metis.prosopon.host', e.target.value, setHost)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Port</label>
+						<input
+							type="number"
+							value={port}
+							onChange={(e) => updateStorage('metis.prosopon.port', e.target.value, setPort)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="font-semibold text-xs text-void-fg-1">LAN Network Mode</div>
+							<div className="text-[10px] text-void-fg-3">Bind 0.0.0.0 for phone access</div>
+						</div>
+						<VoidSwitch
+							value={lanMode}
+							onChange={(v) => {
+								setLanMode(v);
+								storageService.store('metis.prosopon.lanMode', v, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+						/>
+					</div>
+
+					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+						<div>
+							<div className="font-semibold text-xs text-void-fg-1">Self-Signed TLS</div>
+							<div className="text-[10px] text-void-fg-3">HTTPS for mobile microphone</div>
+						</div>
+						<VoidSwitch
+							value={tlsMode}
+							onChange={(v) => {
+								setTlsMode(v);
+								storageService.store('metis.prosopon.tlsMode', v, StorageScope.APPLICATION, StorageTarget.USER);
+							}}
+						/>
+					</div>
+
 					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
 						<div>
 							<div className="font-semibold text-xs text-void-fg-1">Require PIN Pairing</div>
-							<div className="text-[11px] text-void-fg-3">Mandatory 6-digit PIN for remote phones/tablets.</div>
+							<div className="text-[10px] text-void-fg-3">Enforce 6-digit PIN on LAN</div>
 						</div>
 						<VoidSwitch
 							value={requirePin}
@@ -1117,20 +1661,64 @@ export const ProsoponSection = () => {
 							}}
 						/>
 					</div>
+				</div>
 
-					<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
-						<div>
-							<div className="font-semibold text-xs text-void-fg-1">Audio PTT Feedback</div>
-							<div className="text-[11px] text-void-fg-3">Play sound chimes on voice query completion.</div>
-						</div>
-						<VoidSwitch
-							value={audioFeedback}
-							onChange={(v) => {
-								setAudioFeedback(v);
-								storageService.store('metis.prosopon.audioFeedback', v, StorageScope.APPLICATION, StorageTarget.USER);
-							}}
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Session & Pairing Data Directory</label>
+						<input
+							type="text"
+							value={dataDir}
+							onChange={(e) => updateStorage('metis.prosopon.dataDir', e.target.value, setDataDir)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
 						/>
 					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Session Expiry (hours)</label>
+						<input
+							type="number"
+							value={sessionExpiry}
+							onChange={(e) => updateStorage('metis.prosopon.sessionExpiry', e.target.value, setSessionExpiry)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-indigo-500"
+						/>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-void-border-2">
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Local Whisper Binary (STT)</label>
+						<input
+							type="text"
+							value={whisperBinary}
+							onChange={(e) => updateStorage('metis.prosopon.whisperBinary', e.target.value, setWhisperBinary)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label className="text-xs text-void-fg-2 font-medium">Local Piper Binary (TTS)</label>
+						<input
+							type="text"
+							value={piperBinary}
+							onChange={(e) => updateStorage('metis.prosopon.piperBinary', e.target.value, setPiperBinary)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-1.5 text-xs text-void-fg-1 font-mono"
+						/>
+					</div>
+				</div>
+
+				<div className="flex items-center justify-between p-3 bg-void-bg-1/80 border border-void-border-2 rounded-lg">
+					<div>
+						<div className="font-semibold text-xs text-void-fg-1">Audio PTT Feedback</div>
+						<div className="text-[11px] text-void-fg-3">Play sound chimes on voice query completion.</div>
+					</div>
+					<VoidSwitch
+						value={audioFeedback}
+						onChange={(v) => {
+							setAudioFeedback(v);
+							storageService.store('metis.prosopon.audioFeedback', v, StorageScope.APPLICATION, StorageTarget.USER);
+						}}
+					/>
 				</div>
 			</div>
 		</div>
@@ -1145,12 +1733,23 @@ export const StomaSection = () => {
 	const storageService = accessor.get('IStorageService');
 	const controller = useStackController();
 
+	const [memoryRoot, setMemoryRoot] = useState(
+		storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma')
+	);
+	const [embeddingModel, setEmbeddingModel] = useState(
+		storageService.get('metis.stoma.model', StorageScope.APPLICATION, 'nomic-embed-text')
+	);
 	const [topK, setTopK] = useState(
 		storageService.get('metis.stoma.topK', StorageScope.APPLICATION, '5')
 	);
 	const [autoSync, setAutoSync] = useState(
 		storageService.getBoolean('metis.stoma.autoSync', StorageScope.APPLICATION, true)
 	);
+
+	const updateStorage = (key: string, val: string, setter: (v: string) => void) => {
+		setter(val);
+		storageService.store(key, val, StorageScope.APPLICATION, StorageTarget.USER);
+	};
 
 	return (
 		<div className="flex flex-col gap-6 max-w-[800px]">
@@ -1172,28 +1771,31 @@ export const StomaSection = () => {
 
 			<div className="bg-void-bg-2 border border-void-border-2 rounded-xl p-5 flex flex-col gap-5">
 				<h4 className="font-semibold text-void-fg-1 text-sm border-b border-void-border-2 pb-2">
-					Vector Index & Retrieval
+					Vector Index & Retrieval Parameters
 				</h4>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div className="flex flex-col gap-1.5">
-						<label className="text-xs text-void-fg-2 font-medium">Memory Storage Root</label>
+						<label className="text-xs text-void-fg-2 font-medium">Memory Storage Root Path</label>
 						<input
 							type="text"
-							readOnly
-							value=".stoma/"
-							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono opacity-80"
+							value={memoryRoot}
+							onChange={(e) => updateStorage('metis.stoma.root', e.target.value, setMemoryRoot)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono focus:border-purple-500"
 						/>
 					</div>
 
 					<div className="flex flex-col gap-1.5">
-						<label className="text-xs text-void-fg-2 font-medium">Embedding Model</label>
-						<input
-							type="text"
-							readOnly
-							value="nomic-embed-text (Hestia :8080)"
-							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 font-mono opacity-80"
-						/>
+						<label className="text-xs text-void-fg-2 font-medium">Local Embedding Model</label>
+						<select
+							value={embeddingModel}
+							onChange={(e) => updateStorage('metis.stoma.model', e.target.value, setEmbeddingModel)}
+							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1 focus:border-purple-500"
+						>
+							<option value="nomic-embed-text">nomic-embed-text (Hestia :8080 Q8_0)</option>
+							<option value="all-minilm-l6-v2">all-MiniLM-L6-v2 (Local ONNX)</option>
+							<option value="bge-small-en-v1.5">bge-small-en-v1.5</option>
+						</select>
 					</div>
 				</div>
 
@@ -1202,10 +1804,7 @@ export const StomaSection = () => {
 						<label className="text-xs text-void-fg-2 font-medium">Top-K Retrieval Citations</label>
 						<select
 							value={topK}
-							onChange={(e) => {
-								setTopK(e.target.value);
-								storageService.store('metis.stoma.topK', e.target.value, StorageScope.APPLICATION, StorageTarget.USER);
-							}}
+							onChange={(e) => updateStorage('metis.stoma.topK', e.target.value, setTopK)}
 							className="bg-void-bg-1 border border-void-border-2 rounded px-3 py-2 text-xs text-void-fg-1"
 						>
 							<option value="3">3 chunks (Lean)</option>
