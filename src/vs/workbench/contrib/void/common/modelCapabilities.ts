@@ -10,6 +10,11 @@ import { FeatureName, ModelSelectionOptions, OverridesOfModel, ProviderName } fr
 
 
 export const defaultProviderSettings = {
+	metis: {
+		endpoint: 'http://127.0.0.1:8080/v1',
+		orchestratorEndpoint: 'http://127.0.0.1:8000',
+		apiKey: 'metis-sovereign',
+	},
 	anthropic: {
 		apiKey: '',
 	},
@@ -72,6 +77,12 @@ export const defaultProviderSettings = {
 
 
 export const defaultModelsOfProvider = {
+	metis: [
+		'Qwen/Qwen2.5-Coder-32B-Instruct-GGUF',
+		'Qwen/Qwen2.5-Coder-14B-Instruct-GGUF',
+		'deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct',
+		'meta-llama/Llama-3.1-8B-Instruct',
+	],
 	openAI: [ // https://platform.openai.com/docs/models/gp
 		'gpt-4.1',
 		'gpt-4.1-mini',
@@ -1253,6 +1264,15 @@ const openaiCompatible: VoidStaticProviderInfo = {
 	},
 }
 
+const metisSettings: VoidStaticProviderInfo = {
+	modelOptionsFallback: (modelName) => extensiveModelOptionsFallback(modelName, { downloadable: { sizeGb: 'not-known' } }),
+	modelOptions: {},
+	providerReasoningIOSettings: {
+		input: { includeInPayload: openAICompatIncludeInPayloadReasoning },
+		output: { nameOfFieldInDelta: 'reasoning_content' },
+	},
+}
+
 const liteLLMSettings: VoidStaticProviderInfo = { // https://docs.litellm.ai/docs/reasoning_content
 	modelOptionsFallback: (modelName) => extensiveModelOptionsFallback(modelName, { downloadable: { sizeGb: 'not-known' } }),
 	modelOptions: {},
@@ -1466,6 +1486,7 @@ const modelSettingsOfProvider: { [providerName in ProviderName]: VoidStaticProvi
 	vLLM: vLLMSettings,
 	ollama: ollamaSettings,
 	openAICompatible: openaiCompatible,
+	metis: metisSettings,
 	mistral: mistralSettings,
 
 	liteLLM: liteLLMSettings,

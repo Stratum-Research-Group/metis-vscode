@@ -14,6 +14,12 @@
   "contributes": {
     "themes": [
       {
+        "id": "Metis Antigravity Dark",
+        "label": "Metis Antigravity Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/metis_antigravity.json"
+      },
+      {
         "id": "Default Dark+",
         "label": "%darkPlusColorThemeLabel%",
         "uiTheme": "vs-dark",

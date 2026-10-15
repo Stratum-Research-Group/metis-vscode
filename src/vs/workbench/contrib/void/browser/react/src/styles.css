@@ -8,29 +8,30 @@
 @tailwind utilities;
 
 & {
-	--void-bg-1: var(--vscode-input-background);
-	--void-bg-1-alt: var(--vscode-badge-background);
-	--void-bg-2: var(--vscode-sideBar-background);
-	--void-bg-2-alt: color-mix(in srgb, var(--vscode-editor-background) 30%, var(--vscode-sideBar-background) 70%);
-	--void-bg-2-hover: color-mix(in srgb, var(--vscode-editor-foreground) 2%, var(--vscode-sideBar-background) 98%);
-	--void-bg-3: var(--vscode-editor-background);
+	--void-bg-1: var(--vscode-input-background, #12151e);
+	--void-bg-1-alt: var(--vscode-badge-background, #312e81);
+	--void-bg-2: var(--vscode-sideBar-background, #090b10);
+	--void-bg-2-alt: color-mix(in srgb, var(--vscode-editor-background, #0b0d14) 30%, var(--vscode-sideBar-background, #090b10) 70%);
+	--void-bg-2-hover: color-mix(in srgb, var(--vscode-editor-foreground, #e2e8f0) 4%, var(--vscode-sideBar-background, #090b10) 96%);
+	--void-bg-3: var(--vscode-editor-background, #0b0d14);
 
-	--void-fg-0: color-mix(in srgb, var(--vscode-tab-activeForeground) 90%, black 10%);
-	--void-fg-1: var(--vscode-editor-foreground);
-	--void-fg-2: var(--vscode-input-foreground);
-	--void-fg-3: var(--vscode-input-placeholderForeground);
-	/* --void-fg-4: var(--vscode-tab-inactiveForeground); */
-	--void-fg-4: var(--vscode-list-deemphasizedForeground);
+	--void-fg-0: color-mix(in srgb, var(--vscode-tab-activeForeground, #f8fafc) 90%, black 10%);
+	--void-fg-1: var(--vscode-editor-foreground, #e2e8f0);
+	--void-fg-2: var(--vscode-input-foreground, #cbd5e1);
+	--void-fg-3: var(--vscode-input-placeholderForeground, #64748b);
+	--void-fg-4: var(--vscode-list-deemphasizedForeground, #475569);
 
-	--void-warning: var(--vscode-charts-yellow);
+	--void-warning: var(--vscode-charts-yellow, #f59e0b);
 
-	--void-border-1: var(--vscode-commandCenter-activeBorder);
-	--void-border-2: var(--vscode-commandCenter-border);
-	--void-border-3: var(--vscode-commandCenter-inactiveBorder);
-	--void-border-4: var(--vscode-editorGroup-border);
+	--void-border-1: var(--vscode-commandCenter-activeBorder, #6366f1);
+	--void-border-2: var(--vscode-commandCenter-border, #1e2230);
+	--void-border-3: var(--vscode-commandCenter-inactiveBorder, #161922);
+	--void-border-4: var(--vscode-editorGroup-border, #161922);
 
-	--void-ring-color: #007FD4;
-	--void-link-color: #007FD4;
+	--void-ring-color: #6366f1;
+	--void-link-color: #38bdf8;
+	--metis-accent-glow: 0 0 16px rgba(99, 102, 241, 0.25);
+	--metis-glass-bg: rgba(15, 18, 27, 0.75);
 }
 
 .select-child-restyle select {

@@ -3093,15 +3093,39 @@ export const SidebarChat = () => {
 	const isLandingPage = previousMessages.length === 0
 
 
+const MetisActionBar = ({ onSubmit }: { onSubmit: (text: string) => void }) => {
+	const actions = [
+		{ label: '⚡ Run Verification', prompt: 'Run harness test suite to verify current code state under Odyssey checkpointing.' },
+		{ label: '⏪ Rollback Checkpoint', prompt: 'Rollback to previous milestone checkpoint due to failed test or state regression.' },
+		{ label: '🧬 Synthesize Skill', prompt: 'Synthesize the current successful pattern into a reusable skill in .metis/skills/' },
+		{ label: '🛡️ Audit Phylax', prompt: 'Audit proposed action plan against Phylax security policy and tokens.' },
+	];
+
+	return (
+		<div className='flex flex-wrap gap-1.5 py-2 px-1 select-none'>
+			{actions.map((act, i) => (
+				<button
+					key={i}
+					type='button'
+					onClick={() => onSubmit(act.prompt)}
+					className='text-xs px-2.5 py-1 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 transition-all font-medium flex items-center gap-1 shadow-sm'
+				>
+					{act.label}
+				</button>
+			))}
+		</div>
+	);
+};
+
 	const initiallySuggestedPromptsHTML = <div className='flex flex-col gap-2 w-full text-nowrap text-void-fg-3 select-none'>
 		{[
-			'Summarize my codebase',
-			'How do types work in Rust?',
-			'Create a .voidrules file for me'
+			'Audit codebase against Phylax security policies',
+			'Implement task with atomic Odyssey checkpointing & tests',
+			'Learn current solution into a reusable .metis/skills/ SKILL.md'
 		].map((text, index) => (
 			<div
 				key={index}
-				className='py-1 px-2 rounded text-sm bg-zinc-700/5 hover:bg-zinc-700/10 dark:bg-zinc-300/5 dark:hover:bg-zinc-300/10 cursor-pointer opacity-80 hover:opacity-100'
+				className='py-1.5 px-3 rounded text-xs bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/15 cursor-pointer text-indigo-300 hover:text-indigo-200 transition-colors'
 				onClick={() => onSubmit(text)}
 			>
 				{text}
@@ -3115,13 +3139,17 @@ export const SidebarChat = () => {
 		<div className='px-4'>
 			<CommandBarInChat />
 		</div>
+		<div className='px-2'>
+			<MetisActionBar onSubmit={onSubmit} />
+		</div>
 		<div className='px-2 pb-2'>
 			{inputChatArea}
 		</div>
 	</div>
 
 	const landingPageInput = <div>
-		<div className='pt-8'>
+		<div className='pt-6'>
+			<MetisActionBar onSubmit={onSubmit} />
 			{inputChatArea}
 		</div>
 	</div>

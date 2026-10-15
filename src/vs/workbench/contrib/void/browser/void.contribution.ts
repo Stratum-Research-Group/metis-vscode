@@ -10,6 +10,7 @@ import './editCodeService.js'
 // register Sidebar pane, state, actions (keybinds, menus) (Ctrl+L)
 import './sidebarActions.js'
 import './sidebarPane.js'
+import './metisViews.js'
 
 // register quick edit (Ctrl+K)
 import './quickEditActions.js'
@@ -51,9 +52,6 @@ import './voidSelectionHelperWidget.js'
 
 // register tooltip service
 import './tooltipService.js'
-
-// register onboarding service
-import './voidOnboardingService.js'
 
 // register misc service
 import './miscWokrbenchContrib.js'

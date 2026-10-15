@@ -74,7 +74,11 @@ const newOpenAICompatibleSDK = async ({ settingsOfProvider, providerName, includ
 		dangerouslyAllowBrowser: true,
 		...includeInPayload,
 	}
-	if (providerName === 'openAI') {
+	if (providerName === 'metis') {
+		const thisConfig = settingsOfProvider[providerName]
+		return new OpenAI({ baseURL: thisConfig.endpoint || 'http://127.0.0.1:8080/v1', apiKey: thisConfig.apiKey || 'metis-sovereign', ...commonPayloadOpts })
+	}
+	else if (providerName === 'openAI') {
 		const thisConfig = settingsOfProvider[providerName]
 		return new OpenAI({ apiKey: thisConfig.apiKey, ...commonPayloadOpts })
 	}
@@ -855,6 +859,11 @@ type CallFnOfProvider = {
 }
 
 export const sendLLMMessageToProviderImplementation = {
+	metis: {
+		sendChat: (params) => _sendOpenAICompatibleChat(params),
+		sendFIM: (params) => _sendOpenAICompatibleFIM(params),
+		list: (params) => _openaiCompatibleList(params),
+	},
 	anthropic: {
 		sendChat: sendAnthropicChat,
 		sendFIM: null,
