@@ -167,7 +167,11 @@ export const useStackController = () => {
 				});
 			}
 			terminalService.setActiveInstance(term);
-			await terminalService.showPanel(true);
+			try {
+				await terminalService.focusActiveInstance();
+			} catch {
+				try { term.focus(); } catch {}
+			}
 			term.sendText(cmd, true);
 			if (notifyMsg) {
 				notificationService.info(notifyMsg);
@@ -365,11 +369,15 @@ export const useStackController = () => {
 		}
 	};
 
-	const focusStackTerminal = () => {
+	const focusStackTerminal = async () => {
 		let term = terminalService.instances.find(t => t.title.includes('Metis Sovereign Stack') || t.title.includes('Metis Stack'));
 		if (term) {
 			terminalService.setActiveInstance(term);
-			terminalService.showPanel(true);
+			try {
+				await terminalService.focusActiveInstance();
+			} catch {
+				try { term.focus(); } catch {}
+			}
 		} else {
 			executeCommandInStackTerminal('echo "[Metis] Sovereign Stack Terminal Ready."', 'Opening Metis Stack Terminal...');
 		}
