@@ -29,6 +29,12 @@ function code() {
 		node build/lib/preLaunch.js
 	fi
 
+	# Ensure React bundles are up to date and synced to out
+	if [[ ! -f "$ROOT/out/vs/workbench/contrib/void/browser/react/out/void-settings-tsx/index.js" ]] || [[ "$ROOT/src/vs/workbench/contrib/void/browser/react/src" -nt "$ROOT/out/vs/workbench/contrib/void/browser/react/out/void-settings-tsx/index.js" ]]; then
+		echo "⚙️ Building & syncing Metis React bundles to out/..."
+		npm run buildreact
+	fi
+
 	# Manage built-in extensions
 	if [[ "$1" == "--builtin" ]]; then
 		exec "$CODE" build/builtin
