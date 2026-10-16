@@ -80,6 +80,28 @@ function saveStylesFile() {
 const args = process.argv.slice(2);
 const isWatch = args.includes('--watch') || args.includes('-w');
 
+function syncToVscodeOut() {
+	try {
+		const srcOutDir = path.resolve(__dirname, 'out');
+		const vscodeOutReactOut = path.resolve(__dirname, '../../../../../../../out/vs/workbench/contrib/void/browser/react/out');
+		const vscodeOutReactDir = path.resolve(__dirname, '../../../../../../../out/vs/workbench/contrib/void/browser/react');
+
+		if (fs.existsSync(vscodeOutReactDir)) {
+			console.log('🔄 Syncing react bundle to vscode out/...');
+			fs.cpSync(srcOutDir, vscodeOutReactOut, { recursive: true });
+			console.log('✅ Synced react bundle to vscode out successfully!');
+
+			// Clean stale src and src2 in out/vs/workbench/contrib/void/browser/react to avoid stale code pollution
+			const staleSrc = path.join(vscodeOutReactDir, 'src');
+			const staleSrc2 = path.join(vscodeOutReactDir, 'src2');
+			if (fs.existsSync(staleSrc)) fs.rmSync(staleSrc, { recursive: true, force: true });
+			if (fs.existsSync(staleSrc2)) fs.rmSync(staleSrc2, { recursive: true, force: true });
+		}
+	} catch (err) {
+		console.warn('⚠️ Could not sync to vscode out:', err);
+	}
+}
+
 if (isWatch) {
 	// this just builds it if it doesn't exist instead of waiting for the watcher to trigger
 	// Check if src2/ exists; if not, do an initial scope-tailwind build
@@ -126,6 +148,9 @@ if (isWatch) {
 	// Handle tsup watcher output
 	tsupWatcher.stdout.on('data', (data) => {
 		console.log(`[tsup] ${data}`);
+		if (data.toString().includes('Build complete') || data.toString().includes('success')) {
+			syncToVscodeOut();
+		}
 	});
 
 	tsupWatcher.stderr.on('data', (data) => {
@@ -150,5 +175,9 @@ if (isWatch) {
 	// Run tsup once
 	execSync('npx tsup', { stdio: 'inherit' });
 
+	// Sync to vscode out/
+	syncToVscodeOut();
+
 	console.log('✅ Build complete!');
 }
+

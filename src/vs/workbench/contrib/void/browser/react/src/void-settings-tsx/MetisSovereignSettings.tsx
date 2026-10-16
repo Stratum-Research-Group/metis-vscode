@@ -166,9 +166,15 @@ export const useStackController = () => {
 					cwd: '/home/akarta/Projects/Metis',
 				});
 			}
-			terminalService.setActiveInstance(term);
 			try {
-				await terminalService.focusActiveInstance();
+				terminalService.setActiveInstance(term);
+				if (typeof (terminalService as any).focusInstance === 'function') {
+					(terminalService as any).focusInstance(term);
+				} else if (typeof (terminalService as any).focusActiveInstance === 'function') {
+					await (terminalService as any).focusActiveInstance();
+				} else if (typeof term.focus === 'function') {
+					term.focus();
+				}
 			} catch {
 				try { term.focus(); } catch {}
 			}
@@ -372,9 +378,15 @@ export const useStackController = () => {
 	const focusStackTerminal = async () => {
 		let term = terminalService.instances.find(t => t.title.includes('Metis Sovereign Stack') || t.title.includes('Metis Stack'));
 		if (term) {
-			terminalService.setActiveInstance(term);
 			try {
-				await terminalService.focusActiveInstance();
+				terminalService.setActiveInstance(term);
+				if (typeof (terminalService as any).focusInstance === 'function') {
+					(terminalService as any).focusInstance(term);
+				} else if (typeof (terminalService as any).focusActiveInstance === 'function') {
+					await (terminalService as any).focusActiveInstance();
+				} else if (typeof term.focus === 'function') {
+					term.focus();
+				}
 			} catch {
 				try { term.focus(); } catch {}
 			}
