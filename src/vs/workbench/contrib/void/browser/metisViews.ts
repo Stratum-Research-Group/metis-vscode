@@ -24,6 +24,8 @@ import { ITelemetryService } from '../../../../platform/telemetry/common/telemet
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { Orientation } from '../../../../base/browser/ui/sash/sash.js';
+import { IViewsService } from '../../../services/views/common/viewsService.js';
+import { VOID_VIEW_ID } from './sidebarPane.js';
 
 // =========================================================================
 // 1. Phylax View (Security & Action Token Governance)
@@ -337,3 +339,235 @@ viewsRegistry.registerViews([{
 	weight: 100,
 	order: 1,
 }], hestiaContainer);
+
+// =========================================================================
+// 4. Lochos View (Multi-Agent Squad & Durable Work Queue)
+// =========================================================================
+
+export class LochosViewPane extends ViewPane {
+	private _selectedSeatId: string = 'coder';
+
+	constructor(
+		options: IViewPaneOptions,
+		@IInstantiationService instantiationService: IInstantiationService,
+		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
+		@IConfigurationService configurationService: IConfigurationService,
+		@IContextKeyService contextKeyService: IContextKeyService,
+		@IThemeService themeService: IThemeService,
+		@IContextMenuService contextMenuService: IContextMenuService,
+		@IKeybindingService keybindingService: IKeybindingService,
+		@IOpenerService openerService: IOpenerService,
+		@ITelemetryService telemetryService: ITelemetryService,
+		@IHoverService hoverService: IHoverService,
+	) {
+		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
+	}
+
+	protected override renderBody(parent: HTMLElement): void {
+		super.renderBody(parent);
+		parent.style.userSelect = 'text';
+		parent.style.padding = '14px';
+		parent.style.fontFamily = 'var(--vscode-font-family)';
+		parent.style.fontSize = '12px';
+		parent.style.color = 'var(--vscode-foreground)';
+		parent.style.display = 'flex';
+		parent.style.flexDirection = 'column';
+		parent.style.gap = '12px';
+		parent.style.overflowY = 'auto';
+
+		this._renderSquadContent(parent);
+	}
+
+	private _renderSquadContent(parent: HTMLElement): void {
+		parent.innerHTML = '';
+
+		// Top summary card
+		const summaryCard = document.createElement('div');
+		summaryCard.style.cssText = 'background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 12px;';
+		summaryCard.innerHTML = `
+			<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+				<span style="font-weight: 600; font-size: 13px; color: #f8fafc;">🏛️ Lochos Agent Squad</span>
+				<span style="background: #10b98122; color: #10b981; border: 1px solid #10b98144; border-radius: 9999px; font-size: 10px; padding: 2px 8px; font-weight: 600;">COORDINATING</span>
+			</div>
+			<p style="margin: 0; color: #94a3b8; font-size: 11px; line-height: 1.5;">
+				Native multi-agent orchestration without tmux. Durable SQLite work queue, baton ownership, and isolated git worktrees.
+			</p>
+		`;
+		parent.appendChild(summaryCard);
+
+		// Seats section
+		const seatsSection = document.createElement('div');
+		seatsSection.style.cssText = 'background: var(--vscode-sideBar-background); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 12px;';
+
+		const seatsHeader = document.createElement('div');
+		seatsHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;';
+		seatsHeader.innerHTML = `
+			<span style="font-weight: 600; color: #e2e8f0; font-size: 12px;">Active Squad Seats (2)</span>
+			<span style="color: #64748b; font-size: 10px;">Select to inspect</span>
+		`;
+		seatsSection.appendChild(seatsHeader);
+
+		const seats = [
+			{
+				id: 'coder',
+				name: 'Autonomous Coding Agent',
+				address: 'coder@metis-squad',
+				role: 'Primary code implementation, AST navigation, and exact-anchor editing',
+				model: 'Qwen2.5-Coder-32B-Instruct',
+				state: 'IDLE',
+				stateColor: '#10b981',
+				effort: 'high',
+				policy: 'strict',
+				branch: 'squad/coder',
+				skills: ['python', 'refactoring', 'git', 'ast-tools'],
+			},
+			{
+				id: 'reviewer',
+				name: 'Review & Verification Agent',
+				address: 'reviewer@metis-squad',
+				role: 'Zero-trust diff auditing, Dokime test verification, and security checks',
+				model: 'Qwen2.5-Coder-32B-Instruct',
+				state: 'IDLE',
+				stateColor: '#10b981',
+				effort: 'medium',
+				policy: 'audit_only',
+				branch: 'squad/reviewer',
+				skills: ['security', 'code-review', 'pytest', 'audit'],
+			}
+		];
+
+		const seatsList = document.createElement('div');
+		seatsList.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+		for (const seat of seats) {
+			const isSelected = seat.id === this._selectedSeatId;
+			const seatCard = document.createElement('div');
+			seatCard.style.cssText = `
+				padding: 10px;
+				border-radius: 6px;
+				cursor: pointer;
+				border: 1px solid ${isSelected ? 'rgba(99, 102, 241, 0.6)' : 'rgba(255, 255, 255, 0.06)'};
+				background: ${isSelected ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)'};
+				transition: all 0.15s ease;
+			`;
+			seatCard.innerHTML = `
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+					<span style="font-weight: 600; color: ${isSelected ? '#818cf8' : '#f1f5f9'}; font-size: 11px;">${seat.address}</span>
+					<span style="font-size: 9px; padding: 1px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: ${seat.stateColor}; font-weight: 600;">${seat.state}</span>
+				</div>
+				<div style="font-size: 10px; color: #94a3b8; line-height: 1.4;">${seat.name}</div>
+			`;
+			seatCard.onclick = () => {
+				this._selectedSeatId = seat.id;
+				this._renderSquadContent(parent);
+			};
+			seatsList.appendChild(seatCard);
+		}
+		seatsSection.appendChild(seatsList);
+		parent.appendChild(seatsSection);
+
+		// Inspector card for selected seat
+		const current = seats.find(s => s.id === this._selectedSeatId) || seats[0];
+		const inspectorCard = document.createElement('div');
+		inspectorCard.style.cssText = 'background: var(--vscode-sideBar-background); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 12px;';
+		inspectorCard.innerHTML = `
+			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+				<span style="font-weight: 600; color: #e2e8f0; font-size: 12px;">Seat Settings & Configuration</span>
+				<span style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 500;">${current.id}</span>
+			</div>
+			<div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+				<div style="display: flex; justify-content: space-between;">
+					<span style="color: #64748b;">Role:</span>
+					<span style="color: #cbd5e1; text-align: right; max-width: 60%;">${current.role}</span>
+				</div>
+				<div style="display: flex; justify-content: space-between;">
+					<span style="color: #64748b;">Model:</span>
+					<span style="color: #c084fc; font-weight: 500;">${current.model}</span>
+				</div>
+				<div style="display: flex; justify-content: space-between;">
+					<span style="color: #64748b;">Effort / Temp:</span>
+					<span style="color: #cbd5e1;">${current.effort} / 0.2</span>
+				</div>
+				<div style="display: flex; justify-content: space-between;">
+					<span style="color: #64748b;">Permission Policy:</span>
+					<span style="color: ${current.policy === 'strict' ? '#f59e0b' : '#38bdf8'}; font-weight: 500;">${current.policy.toUpperCase()}</span>
+				</div>
+				<div style="display: flex; justify-content: space-between;">
+					<span style="color: #64748b;">Worktree Branch:</span>
+					<span style="color: #38bdf8; font-family: monospace;">${current.branch}</span>
+				</div>
+				<div style="display: flex; justify-content: space-between; align-items: flex-start;">
+					<span style="color: #64748b;">Context Skills:</span>
+					<div style="display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: 60%;">
+						${current.skills.map(s => `<span style="background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; font-size: 10px; color: #94a3b8;">${s}</span>`).join('')}
+					</div>
+				</div>
+			</div>
+		`;
+
+		// Open in Agent Workspace button
+		const actionBtn = document.createElement('button');
+		actionBtn.style.cssText = `
+			margin-top: 12px;
+			width: 100%;
+			padding: 8px 12px;
+			background: #4f46e5;
+			color: #ffffff;
+			border: none;
+			border-radius: 6px;
+			font-weight: 600;
+			font-size: 11px;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 6px;
+			transition: background 0.15s ease;
+		`;
+		actionBtn.innerHTML = `💬 Open ${current.id} in Agent Pane`;
+		actionBtn.onmouseover = () => { actionBtn.style.background = '#4338ca'; };
+		actionBtn.onmouseout = () => { actionBtn.style.background = '#4f46e5'; };
+		actionBtn.onclick = () => {
+			this.instantiationService.invokeFunction(accessor => {
+				accessor.get(IViewsService).openView(VOID_VIEW_ID, true);
+			});
+		};
+		inspectorCard.appendChild(actionBtn);
+
+		parent.appendChild(inspectorCard);
+	}
+
+	protected override layoutBody(height: number, width: number): void {
+		super.layoutBody(height, width);
+		this.element.style.height = `${height}px`;
+		this.element.style.width = `${width}px`;
+	}
+}
+
+export const METIS_LOCHOS_CONTAINER_ID = 'workbench.view.metis.lochos';
+export const METIS_LOCHOS_VIEW_ID = 'workbench.view.metis.lochos.pane';
+
+// 4. Lochos View Container & Pane
+const lochosContainer = viewContainerRegistry.registerViewContainer({
+	id: METIS_LOCHOS_CONTAINER_ID,
+	title: nls.localize2('metisLochosTitle', 'Lochos Squad'),
+	ctorDescriptor: new SyncDescriptor(ViewPaneContainer, [METIS_LOCHOS_CONTAINER_ID, {
+		mergeViewWithContainerWhenSingleView: true,
+		orientation: Orientation.HORIZONTAL,
+	}]),
+	hideIfEmpty: false,
+	order: 13,
+	rejectAddedViews: true,
+	icon: Codicon.symbolObject,
+}, ViewContainerLocation.Sidebar, { doNotRegisterOpenCommand: false });
+
+viewsRegistry.registerViews([{
+	id: METIS_LOCHOS_VIEW_ID,
+	hideByDefault: false,
+	name: nls.localize2('metisLochosView', 'Agent Squad'),
+	ctorDescriptor: new SyncDescriptor(LochosViewPane),
+	canToggleVisibility: false,
+	canMoveView: false,
+	weight: 100,
+	order: 1,
+}], lochosContainer);
