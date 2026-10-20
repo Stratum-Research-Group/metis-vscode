@@ -92,15 +92,23 @@ const _modelsWithSwappedInNewModels = (options: { existingModels: VoidStatefulMo
 		existingModelsMap[existingModel.modelName] = existingModel
 	}
 
-	const newDefaultModels = models.map((modelName, i) => ({ modelName, type, isHidden: !!existingModelsMap[modelName]?.isHidden, }))
+	const seen = new Set<string>()
+	const result: VoidStatefulModelInfo[] = []
 
-	return [
-		...newDefaultModels, // swap out all the models of this type for the new models of this type
-		...existingModels.filter(m => {
-			const keep = m.type !== type
-			return keep
-		})
-	]
+	for (const modelName of models) {
+		if (seen.has(modelName)) continue
+		seen.add(modelName)
+		result.push({ modelName, type, isHidden: !!existingModelsMap[modelName]?.isHidden })
+	}
+
+	for (const m of existingModels) {
+		if (m.type !== type && !seen.has(m.modelName)) {
+			seen.add(m.modelName)
+			result.push(m)
+		}
+	}
+
+	return result
 }
 
 
@@ -169,8 +177,10 @@ const _validatedModelState = (state: Omit<VoidSettingsState, '_modelOptions'>): 
 	for (const providerName of providerNames) {
 		const providerTitle = providerName // displayInfoOfProviderName(providerName).title.toLowerCase() // looks better lowercase, best practice to not use raw providerName
 		if (!newSettingsOfProvider[providerName]._didFillInProviderSettings) continue // if disabled, don't display model options
+		const seen = new Set<string>()
 		for (const { modelName, isHidden } of newSettingsOfProvider[providerName].models) {
-			if (isHidden) continue
+			if (isHidden || seen.has(modelName)) continue
+			seen.add(modelName)
 			newModelOptions.push({ name: `${modelName} (${providerTitle})`, selection: { providerName, modelName } })
 		}
 	}

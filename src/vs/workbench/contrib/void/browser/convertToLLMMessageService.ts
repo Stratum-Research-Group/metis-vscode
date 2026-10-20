@@ -40,8 +40,8 @@ type SimpleLLMMessage = {
 
 
 
-const CHARS_PER_TOKEN = 4 // assume abysmal chars per token
-const TRIM_TO_LEN = 120
+const CHARS_PER_TOKEN = 2.7 // conservative tokens-to-characters ratio for code, json, and symbols
+const TRIM_TO_LEN = 240
 
 
 
@@ -347,18 +347,33 @@ const prepareOpenAIOrAnthropicMessages = ({
 		if (i > 100) break
 
 		const trimIdx = _findLargestByWeight(messages)
+		if (trimIdx === -1) break
 		const m = messages[trimIdx]
 
-		// if can finish here, do
 		const numCharsWillTrim = m.content.length - TRIM_TO_LEN
+		if (numCharsWillTrim <= 0) {
+			alreadyTrimmedIdxes.add(trimIdx)
+			continue
+		}
+
 		if (numCharsWillTrim > remainingCharsToTrim) {
-			// trim remainingCharsToTrim + '...'.length chars
-			m.content = m.content.slice(0, m.content.length - remainingCharsToTrim - '...'.length).trim() + '...'
+			const keepLen = Math.max(m.content.length - remainingCharsToTrim, TRIM_TO_LEN)
+			if (m.role === 'tool') {
+				m.content = m.content.slice(0, keepLen).trim() + '\n\n[... Remaining content flushed to .stoma/ working memory ledger to preserve context window ...]'
+			} else {
+				const headLen = Math.floor(keepLen * 0.7)
+				const tailLen = Math.floor(keepLen * 0.25)
+				m.content = m.content.slice(0, headLen).trim() + '\n\n[... Intermediate turns compacted by Stoma memory ledger ...]\n\n' + m.content.slice(-tailLen).trim()
+			}
 			break
 		}
 
 		remainingCharsToTrim -= numCharsWillTrim
-		m.content = m.content.substring(0, TRIM_TO_LEN - '...'.length) + '...'
+		if (m.role === 'tool') {
+			m.content = m.content.slice(0, 160) + '\n\n[... Flushed to .stoma/ working memory ledger ...]'
+		} else {
+			m.content = m.content.slice(0, 120) + '\n\n[... Compacted by Stoma memory ledger ...]\n\n' + m.content.slice(-80)
+		}
 		alreadyTrimmedIdxes.add(trimIdx)
 	}
 

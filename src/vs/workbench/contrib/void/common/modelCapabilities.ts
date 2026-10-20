@@ -78,10 +78,11 @@ export const defaultProviderSettings = {
 
 export const defaultModelsOfProvider = {
 	metis: [
-		'Qwen/Qwen2.5-Coder-32B-Instruct-GGUF',
-		'Qwen/Qwen2.5-Coder-14B-Instruct-GGUF',
-		'deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct',
-		'meta-llama/Llama-3.1-8B-Instruct',
+		'qwen2.5-14b-instruct',
+		'qwen2.5-coder-32b',
+		'gemma-4-26b-a4b-abliterated',
+		'llama-3.1-8b-instruct',
+		'nomic-embed-text',
 	],
 	openAI: [ // https://platform.openai.com/docs/models/gp
 		'gpt-4.1',
@@ -1266,7 +1267,53 @@ const openaiCompatible: VoidStaticProviderInfo = {
 
 const metisSettings: VoidStaticProviderInfo = {
 	modelOptionsFallback: (modelName) => extensiveModelOptionsFallback(modelName, { downloadable: { sizeGb: 'not-known' } }),
-	modelOptions: {},
+	modelOptions: {
+		'qwen2.5-14b-instruct': {
+			contextWindow: 32_768,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: true,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: false,
+		},
+		'qwen2.5-coder-32b': {
+			contextWindow: 32_768,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: true,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: false,
+		},
+		'gemma-4-26b-a4b-abliterated': {
+			contextWindow: 8_192,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: false,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: false,
+		},
+		'llama-3.1-8b-instruct': {
+			contextWindow: 8_192,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: false,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: false,
+		},
+		'nomic-embed-text': {
+			contextWindow: 2_048,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: false,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: false,
+		},
+	},
 	providerReasoningIOSettings: {
 		input: { includeInPayload: openAICompatIncludeInPayloadReasoning },
 		output: { nameOfFieldInDelta: 'reasoning_content' },

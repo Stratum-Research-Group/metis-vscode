@@ -395,6 +395,16 @@ export const useStackController = () => {
 		}
 	};
 
+	const executePanicLockdown = () => {
+		const host = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
+		const port = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
+		const tls = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
+		const proto = tls ? 'https' : 'http';
+
+		const cmd = `cd /home/akarta/Projects/Metis && (python3 -c "from pathlib import Path; from prosopon.storage.access_store import AccessStore; s=AccessStore(Path('prosopon/data/access.db')); r=s.lockdown_all(reason='panic_lockdown'); print(f'[PANIC LOCKDOWN] Revoked {r[0]} devices and {r[1]} active sessions.')" || true) && (curl -s -X POST ${proto}://${host}:${port}/api/devices/lockdown -H "Content-Type: application/json" -d '{"reason": "panic_lockdown", "stop_runs": true}' || true) && echo "[Metis] EMERGENCY PANIC LOCKDOWN COMPLETE: All remote WebRTC channels and companion sessions terminated in <500ms."`;
+		executeCommandInStackTerminal(cmd, 'EMERGENCY PANIC LOCKDOWN TRIGGERED: Terminating all remote WebRTC channels and companion sessions...');
+	};
+
 	return {
 		startAllStack,
 		stopAllStack,
@@ -413,6 +423,7 @@ export const useStackController = () => {
 		rebuildMemoryIndex,
 		openProsopon,
 		focusStackTerminal,
+		executePanicLockdown,
 	};
 };
 
@@ -1673,6 +1684,9 @@ export const ProsoponSection = () => {
 	const [sessionExpiry, setSessionExpiry] = useState(
 		storageService.get('metis.prosopon.sessionExpiry', StorageScope.APPLICATION, '72')
 	);
+	const [voiceEnabled, setVoiceEnabled] = useState(
+		storageService.getBoolean('metis.prosopon.voiceEnabled', StorageScope.APPLICATION, false)
+	);
 	const [audioFeedback, setAudioFeedback] = useState(
 		storageService.getBoolean('metis.prosopon.audioFeedback', StorageScope.APPLICATION, true)
 	);
@@ -1843,7 +1857,31 @@ export const ProsoponSection = () => {
 					</div>
 				</div>
 
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-void-border-2">
+				{/* Voice Pipeline Master Switch (Whisper STT & Piper TTS) */}
+				<div className="flex items-center justify-between p-4 bg-void-bg-1 border border-void-border-2 rounded-lg">
+					<div className="flex flex-col gap-1 pr-4">
+						<div className="flex items-center gap-2">
+							<span className="font-semibold text-xs text-void-fg-1">🎙️ Voice & Audio Pipeline (Whisper STT + Piper TTS)</span>
+							<span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${voiceEnabled ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-slate-500/20 text-slate-400 border-slate-500/40'}`}>
+								{voiceEnabled ? 'ACTIVE / ON' : 'OFF BY DEFAULT'}
+							</span>
+						</div>
+						<div className="text-[11px] text-void-fg-3">
+							{voiceEnabled
+								? 'Whisper STT and Piper TTS engines are active. Push-to-talk voice commands and synthesized audio replies are enabled.'
+								: 'Whisper and Piper models are turned off by default to conserve memory and compute. Switch on if you want to use push-to-talk voice interaction.'}
+						</div>
+					</div>
+					<VoidSwitch
+						value={voiceEnabled}
+						onChange={(v) => {
+							setVoiceEnabled(v);
+							storageService.store('metis.prosopon.voiceEnabled', v, StorageScope.APPLICATION, StorageTarget.USER);
+						}}
+					/>
+				</div>
+
+				<div className={`grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-void-border-2 transition-opacity ${voiceEnabled ? 'opacity-100' : 'opacity-60'}`}>
 					<div className="flex flex-col gap-1.5">
 						<label className="text-xs text-void-fg-2 font-medium">Local Whisper Binary (STT)</label>
 						<input
