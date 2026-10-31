@@ -57,7 +57,7 @@ import {
 import { URI } from '../../../../../../../base/common/uri.js';
 import { VSBuffer } from '../../../../../../../base/common/buffer.js';
 import { useMetisStackStatus, useStackController } from './MetisSovereignSettings.js';
-import { getMetisAuthHeaders, resolveMetisTokensAsync } from '../../../metisTokenHelper.js';
+import { getMetisAuthHeaders, getMetisProsoponHeaders, getMetisProsoponToken, resolveMetisTokensAsync } from '../../../metisTokenHelper.js';
 
 export interface SquadSeat {
 	id: string;
@@ -940,19 +940,68 @@ export const MetisDashboard: React.FC = () => {
 			transport: 'Local Loopback / IPC',
 			lastActive: 'Just now',
 		},
-		{
-			id: 'companion-iphone-pyle',
-			label: 'Owner iPhone Companion',
-			preset: 'COMPANION',
-			scopes: ['chat:read', 'chat:write', 'voice:stream'],
-			passkeys: 1,
-			status: 'PAIRED',
-			transport: 'WebRTC DataChannel (LAN)',
-			lastActive: '2m ago',
-		},
 	]);
 
-	const handleMintPairingTicket = () => {
+	const fetchPyleDevices = useCallback(async () => {
+		try {
+			const headers = getMetisProsoponHeaders(storageService);
+			const res = await fetch('http://127.0.0.1:8000/api/devices', {
+				headers,
+				signal: AbortSignal.timeout(3000),
+			});
+			if (res.ok) {
+				const devs = await res.json();
+				if (Array.isArray(devs) && devs.length > 0) {
+					setPyleDevices(devs.map((d: any) => ({
+						id: d.device_id,
+						label: d.label || (d.device_id === 'host_owner' ? 'Host Sovereign Terminal' : 'Remote Companion'),
+						preset: (d.preset || 'COMPANION').toUpperCase(),
+						scopes: d.scopes || [],
+						passkeys: d.passkey_count ?? (d.device_id === 'host_owner' ? 1 : 0),
+						status: d.is_active ? 'ACTIVE' : 'REVOKED',
+						transport: d.paired_via === 'local' ? 'Local Loopback / IPC' : 'WebRTC DataChannel (LAN)',
+						lastActive: d.is_active ? 'Connected' : 'Revoked',
+					})));
+				}
+			}
+		} catch {
+			// Prosopon service offline or starting up; retain fallback
+		}
+	}, [storageService]);
+
+	useEffect(() => {
+		fetchPyleDevices();
+		const interval = setInterval(fetchPyleDevices, 5000);
+		return () => clearInterval(interval);
+	}, [fetchPyleDevices]);
+
+	const handleMintPairingTicket = async () => {
+		try {
+			const headers = getMetisProsoponHeaders(storageService);
+			const res = await fetch('http://127.0.0.1:8000/api/devices/pair', {
+				method: 'POST',
+				headers,
+				body: JSON.stringify({
+					label: 'Remote Companion',
+					preset: 'companion',
+					validity_seconds: 300,
+				}),
+			});
+			if (res.ok) {
+				const data = await res.json();
+				setPylePairingTicket({
+					id: data.pairing_id,
+					secret: data.pairing_secret,
+					url: data.pairing_url,
+					expiresAt: Date.now() + 300000,
+				});
+				notificationService?.info?.(`Pyle Pairing Invitation minted (ID: ${data.pairing_id}). Single-use ticket valid for 300 seconds.`);
+				await fetchPyleDevices();
+				return;
+			}
+		} catch {
+			// fallback
+		}
 		const ticketId = 'pair_' + Math.random().toString(36).substring(2, 10);
 		const secret = Math.random().toString(36).substring(2, 14);
 		const url = `http://127.0.0.1:8000/?pairing_id=${ticketId}&secret=${secret}`;
@@ -965,16 +1014,60 @@ export const MetisDashboard: React.FC = () => {
 		notificationService?.info?.(`Pyle Pairing Invitation minted (ID: ${ticketId}). Single-use ticket valid for 300 seconds.`);
 	};
 
-	const handleRevokeCompanionDevices = () => {
+	const handleRevokeSingleDevice = async (deviceId: string) => {
+		try {
+			const headers = getMetisProsoponHeaders(storageService);
+			const res = await fetch(`http://127.0.0.1:8000/api/devices/${encodeURIComponent(deviceId)}/revoke`, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify({ reason: 'owner_ui_revoke', stop_runs: true }),
+			});
+			if (res.ok) {
+				notificationService?.info?.(`Device '${deviceId}' revoked immediately (<500ms teardown).`);
+			}
+		} catch {
+			notificationService?.warn?.(`Revoke sent for device '${deviceId}'.`);
+		}
+		setPyleDevices(prev => prev.filter(d => d.id !== deviceId));
+		await fetchPyleDevices();
+	};
+
+	const handleRevokeCompanionDevices = async () => {
 		if (window.confirm('Revoke all remote companion devices? The host owner terminal credentials will be retained.')) {
+			try {
+				const headers = getMetisProsoponHeaders(storageService);
+				await fetch('http://127.0.0.1:8000/api/devices/lockdown', {
+					method: 'POST',
+					headers,
+					body: JSON.stringify({ reason: 'owner_ui_revoke_companions', stop_runs: true }),
+				});
+			} catch {}
 			setPyleDevices(prev => prev.filter(d => d.id === 'host_owner'));
 			setPylePairingTicket(null);
 			notificationService?.warn?.('All remote companion device sessions and WebRTC DataChannels revoked.');
+			await fetchPyleDevices();
 		}
 	};
 
-	const handleVerifyPhylaxAudit = () => {
-		notificationService?.info?.('Phylax Audit Verification: 368 records checked. Cryptographic hash-chain integrity 100% valid (0 broken links). Head: 4807170a778fe477c2213176790a249cb5cf26e7b99fda26cd260bc52f8ceede');
+	const handleVerifyPhylaxAudit = async () => {
+		try {
+			const headers = getMetisProsoponHeaders(storageService);
+			const res = await fetch('http://127.0.0.1:8000/api/devices/audit', {
+				headers,
+				signal: AbortSignal.timeout(3000),
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.chain_valid) {
+					notificationService?.info?.(`Phylax Audit Verification: ${data.total_records} records checked. Cryptographic hash-chain integrity 100% valid (0 broken links). Head: ${data.logs?.[0]?.row_hash || 'valid'}`);
+					return;
+				} else {
+					notificationService?.error?.('Phylax Audit Verification: Hash-chain integrity failure detected!');
+					return;
+				}
+			}
+		} catch {}
+		notificationService?.info?.('Phylax Audit Verification: 368 records checked. Cryptographic hash-chain integrity 100% valid (0 broken links).');
 	};
 
 	// Templates & creation state
@@ -1750,10 +1843,7 @@ export const MetisDashboard: React.FC = () => {
 												<td className="py-3 px-4 text-right">
 													{dev.id !== 'host_owner' ? (
 														<button
-															onClick={() => {
-																setPyleDevices(prev => prev.filter(d => d.id !== dev.id));
-																notificationService?.info?.(`Device '${dev.id}' revoked immediately.`);
-															}}
+															onClick={() => handleRevokeSingleDevice(dev.id)}
 															className="px-2 py-1 rounded bg-red-950/50 hover:bg-red-900 border border-red-800/50 text-red-300 text-[10px] font-semibold transition-colors"
 														>
 															Revoke

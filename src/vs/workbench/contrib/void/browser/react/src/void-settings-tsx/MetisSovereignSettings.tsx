@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAccessor, useSettingsState } from '../util/services.js';
 import { VoidSwitch } from '../util/inputs.js';
 import { StorageScope, StorageTarget } from '../../../../../../../platform/storage/common/storage.js';
-import { getMetisKybernetesToken, getMetisHestiaToken } from '../../../metisTokenHelper.js';
+import { getMetisKybernetesToken, getMetisHestiaToken, getMetisProsoponToken } from '../../../metisTokenHelper.js';
 import {
 	Play,
 	Square,
@@ -401,8 +401,9 @@ export const useStackController = () => {
 		const port = storageService.get('metis.prosopon.port', StorageScope.APPLICATION, '8000');
 		const tls = storageService.getBoolean('metis.prosopon.tlsMode', StorageScope.APPLICATION, false);
 		const proto = tls ? 'https' : 'http';
+		const prosToken = getMetisProsoponToken(storageService);
 
-		const cmd = `cd /home/akarta/Projects/Metis && (python3 -c "from pathlib import Path; from prosopon.storage.access_store import AccessStore; s=AccessStore(Path('prosopon/data/access.db')); r=s.lockdown_all(reason='panic_lockdown'); print(f'[PANIC LOCKDOWN] Revoked {r[0]} devices and {r[1]} active sessions.')" || true) && (curl -s -X POST ${proto}://${host}:${port}/api/devices/lockdown -H "Content-Type: application/json" -d '{"reason": "panic_lockdown", "stop_runs": true}' || true) && echo "[Metis] EMERGENCY PANIC LOCKDOWN COMPLETE: All remote WebRTC channels and companion sessions terminated in <500ms."`;
+		const cmd = `cd /home/akarta/Projects/Metis && (python3 -c "from pathlib import Path; from prosopon.storage.access_store import AccessStore; s=AccessStore(Path('data/access.db')); r=s.lockdown_all(reason='panic_lockdown'); print(f'[PANIC LOCKDOWN] Revoked {r[0]} devices and {r[1]} active sessions.')" || true) && (curl -s -X POST ${proto}://${host}:${port}/api/devices/lockdown -H "Content-Type: application/json" -H "Authorization: Bearer ${prosToken}" -H "X-Host-Owner-Token: ${prosToken}" -d '{"reason": "panic_lockdown", "stop_runs": true}' || true) && echo "[Metis] EMERGENCY PANIC LOCKDOWN COMPLETE: All remote WebRTC channels and companion sessions terminated in <500ms."`;
 		executeCommandInStackTerminal(cmd, 'EMERGENCY PANIC LOCKDOWN TRIGGERED: Terminating all remote WebRTC channels and companion sessions...');
 	};
 

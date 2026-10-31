@@ -12,10 +12,12 @@ import { IVoidSettingsService } from '../common/voidSettingsService.js';
 export const METIS_STORAGE_KYBERNETES_TOKEN_KEY = 'metis.kybernetes.serviceToken';
 export const METIS_STORAGE_HESTIA_TOKEN_KEY = 'metis.hestia.serviceToken';
 export const METIS_STORAGE_ADMIN_TOKEN_KEY = 'metis.kybernetes.adminToken';
+export const METIS_STORAGE_PROSOPON_TOKEN_KEY = 'metis.prosopon.hostOwnerToken';
 
 // In-memory cache for fast synchronous access
 let _cachedKybernetesToken: string | null = null;
 let _cachedHestiaToken: string | null = null;
+let _cachedProsoponToken: string | null = null;
 
 /**
  * Parse an environment file (e.g. deploy/metis.env) for key-value pairs.
@@ -49,9 +51,10 @@ export async function resolveMetisTokensAsync(
 	workspaceContextService?: IWorkspaceContextService,
 	storageService?: IStorageService,
 	voidSettingsService?: IVoidSettingsService
-): Promise<{ kybernetesToken: string; hestiaToken: string }> {
+): Promise<{ kybernetesToken: string; hestiaToken: string; prosoponToken: string }> {
 	let kybToken: string | null = null;
 	let hestiaToken: string | null = null;
+	let prosoponToken: string | null = null;
 
 	// 1. Check storageService
 	if (storageService) {
@@ -63,6 +66,10 @@ export async function resolveMetisTokensAsync(
 		if (storedHestia && storedHestia !== 'metis-sovereign') {
 			hestiaToken = storedHestia;
 		}
+		const storedPros = storageService.get(METIS_STORAGE_PROSOPON_TOKEN_KEY, StorageScope.APPLICATION);
+		if (storedPros && storedPros !== 'metis-sovereign') {
+			prosoponToken = storedPros;
+		}
 	}
 
 	// 2. Check voidSettingsService provider settings for Metis apiKey
@@ -73,13 +80,13 @@ export async function resolveMetisTokensAsync(
 		}
 	}
 
-	// 3. Auto-discover from workspace deploy/metis.env
-	if ((!kybToken || !hestiaToken) && fileService && workspaceContextService) {
+	// 3. Auto-discover from workspace deploy/metis.env and data/.host_owner_token
+	if ((!kybToken || !hestiaToken || !prosoponToken) && fileService && workspaceContextService) {
 		const folders = workspaceContextService.getWorkspace().folders;
 		for (const folder of folders) {
-			const candidateUri = URI.joinPath(folder.uri, 'deploy', 'metis.env');
+			const envUri = URI.joinPath(folder.uri, 'deploy', 'metis.env');
 			try {
-				const fileContent = await fileService.readFile(candidateUri);
+				const fileContent = await fileService.readFile(envUri);
 				const parsed = parseEnvFile(fileContent.value.toString());
 				if (parsed['KYBERNETES_SERVICE_TOKEN'] && !kybToken) {
 					kybToken = parsed['KYBERNETES_SERVICE_TOKEN'];
@@ -87,25 +94,45 @@ export async function resolveMetisTokensAsync(
 				if (parsed['HESTIA_SERVICE_TOKEN'] && !hestiaToken) {
 					hestiaToken = parsed['HESTIA_SERVICE_TOKEN'];
 				}
-				if (kybToken && hestiaToken) break;
+				if ((parsed['PROSOPON_HOST_OWNER_TOKEN'] || parsed['PROSOPON_SERVICE_TOKEN']) && !prosoponToken) {
+					prosoponToken = parsed['PROSOPON_HOST_OWNER_TOKEN'] || parsed['PROSOPON_SERVICE_TOKEN'];
+				}
 			} catch {
 				// file not present in this folder, check next
 			}
+
+			if (!prosoponToken) {
+				const hostOwnerUri = URI.joinPath(folder.uri, 'data', '.host_owner_token');
+				try {
+					const hostOwnerContent = await fileService.readFile(hostOwnerUri);
+					const tok = hostOwnerContent.value.toString().trim();
+					if (tok) {
+						prosoponToken = tok;
+					}
+				} catch {
+					// file not present in this folder
+				}
+			}
+
+			if (kybToken && hestiaToken && prosoponToken) break;
 		}
 	}
 
 	// 4. Fallback defaults if discovery found nothing
 	kybToken = kybToken || '0d4b83563dfab46fdec0d777728985eb1fd0bd0ba4c4a2b0';
 	hestiaToken = hestiaToken || '0d4b83563dfab46fdec0d777728985eb1fd0bd0ba4c4a2b0';
+	prosoponToken = prosoponToken || '3y-LilvWapsZAVRUOpZCGNZ4L4cE8grWm_7iQQC7PrE';
 
 	// Cache in memory
 	_cachedKybernetesToken = kybToken;
 	_cachedHestiaToken = hestiaToken;
+	_cachedProsoponToken = prosoponToken;
 
 	// Persist to storageService for subsequent fast lookups
 	if (storageService) {
 		storageService.store(METIS_STORAGE_KYBERNETES_TOKEN_KEY, kybToken, StorageScope.APPLICATION, StorageTarget.USER);
 		storageService.store(METIS_STORAGE_HESTIA_TOKEN_KEY, hestiaToken, StorageScope.APPLICATION, StorageTarget.USER);
+		storageService.store(METIS_STORAGE_PROSOPON_TOKEN_KEY, prosoponToken, StorageScope.APPLICATION, StorageTarget.USER);
 	}
 
 	// Keep voidSettingsService in sync
@@ -120,7 +147,7 @@ export async function resolveMetisTokensAsync(
 		}
 	}
 
-	return { kybernetesToken: kybToken, hestiaToken };
+	return { kybernetesToken: kybToken, hestiaToken, prosoponToken };
 }
 
 /**
@@ -181,4 +208,38 @@ export function getMetisAuthHeaders(
 		'Authorization': `Bearer ${token}`
 	};
 }
+
+/**
+ * Synchronous resolver for Prosopon Host Owner / admin token.
+ */
+export function getMetisProsoponToken(
+	storageService?: IStorageService
+): string {
+	if (_cachedProsoponToken) {
+		return _cachedProsoponToken;
+	}
+	if (storageService) {
+		const val = storageService.get(METIS_STORAGE_PROSOPON_TOKEN_KEY, StorageScope.APPLICATION);
+		if (val && val !== 'metis-sovereign') {
+			_cachedProsoponToken = val;
+			return val;
+		}
+	}
+	return '3y-LilvWapsZAVRUOpZCGNZ4L4cE8grWm_7iQQC7PrE';
+}
+
+/**
+ * Return authorization headers dictionary for Prosopon HTTP calls (Pyle WebRTC, devices, audit).
+ */
+export function getMetisProsoponHeaders(
+	storageService?: IStorageService
+): Record<string, string> {
+	const token = getMetisProsoponToken(storageService);
+	return {
+		'Authorization': `Bearer ${token}`,
+		'X-Host-Owner-Token': token,
+		'Content-Type': 'application/json'
+	};
+}
+
 
