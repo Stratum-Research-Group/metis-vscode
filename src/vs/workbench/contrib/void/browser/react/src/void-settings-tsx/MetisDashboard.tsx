@@ -57,6 +57,7 @@ import {
 import { URI } from '../../../../../../../base/common/uri.js';
 import { VSBuffer } from '../../../../../../../base/common/buffer.js';
 import { useMetisStackStatus, useStackController } from './MetisSovereignSettings.js';
+import { getMetisAuthHeaders, resolveMetisTokensAsync } from '../../../metisTokenHelper.js';
 
 export interface SquadSeat {
 	id: string;
@@ -696,9 +697,17 @@ export const MetisDashboard: React.FC = () => {
 	const workspacesService = accessor.get('IWorkspacesService');
 	const terminalService = accessor.get('ITerminalService');
 	const chatThreadsService = accessor.get('IChatThreadService');
+	const storageService = accessor.get('IStorageService');
+	const voidSettingsService = accessor.get('IVoidSettingsService');
+	const workspaceContextService = accessor.get('IWorkspaceContextService');
 
 	// Active tab inside Dashboard
 	const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+
+	// Synchronize Metis service tokens from deploy/metis.env
+	useEffect(() => {
+		resolveMetisTokensAsync(fileService, workspaceContextService, storageService, voidSettingsService).catch(() => {});
+	}, [fileService, workspaceContextService, storageService, voidSettingsService]);
 
 	// Agent state & chat threads
 	const chatThreadsState = useChatThreadsState();
@@ -736,17 +745,18 @@ export const MetisDashboard: React.FC = () => {
 	const fetchLochosData = useCallback(async () => {
 		try {
 			setIsLochosLoading(true);
+			const headers = getMetisAuthHeaders(storageService, voidSettingsService);
 			const [squadRes, queueRes, attnRes] = await Promise.allSettled([
 				fetch('http://127.0.0.1:8081/v1/lochos/squad', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				}),
 				fetch('http://127.0.0.1:8081/v1/lochos/queue', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				}),
 				fetch('http://127.0.0.1:8081/v1/lochos/attention', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				})
 			]);
@@ -789,7 +799,7 @@ export const MetisDashboard: React.FC = () => {
 		} finally {
 			setIsLochosLoading(false);
 		}
-	}, []);
+	}, [storageService, voidSettingsService]);
 
 	// Poll Lochos data periodically
 	useEffect(() => {
@@ -809,7 +819,7 @@ export const MetisDashboard: React.FC = () => {
 			const res = await fetch('http://127.0.0.1:8081/v1/lochos/dispatch', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(storageService, voidSettingsService),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
@@ -851,7 +861,7 @@ export const MetisDashboard: React.FC = () => {
 			const res = await fetch('http://127.0.0.1:8081/v1/lochos/transfer', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(storageService, voidSettingsService),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
@@ -883,7 +893,7 @@ export const MetisDashboard: React.FC = () => {
 			const res = await fetch('http://127.0.0.1:8081/v1/lochos/attention/resolve', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(storageService, voidSettingsService),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({

@@ -30,6 +30,9 @@ import { INotificationService, Severity } from '../../../../platform/notificatio
 import { IQuickInputService, IQuickPickItem } from '../../../../platform/quickinput/common/quickInput.js';
 import { IViewsService } from '../../../services/views/common/viewsService.js';
 import { IVoidSettingsService } from '../common/voidSettingsService.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
+import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
+import { getMetisAuthHeaders, resolveMetisTokensAsync } from './metisTokenHelper.js';
 import { METIS_DIANOIA_VIEW_ID, METIS_HESTIA_VIEW_ID, METIS_LOCHOS_VIEW_ID, METIS_PHYLAX_VIEW_ID, METIS_LAUNCHPAD_VIEW_ID, METIS_AGENT_HUB_VIEW_ID, METIS_RESEARCH_VIEW_ID, METIS_STOMA_VIEW_ID, METIS_DOKIME_VIEW_ID } from './metisViews.js';
 import { VOID_VIEW_ID } from './sidebarPane.js';
 
@@ -378,7 +381,10 @@ export class MetisDashboardStartupContribution extends Disposable implements IWo
 		@IStatusbarService private readonly statusbarService: IStatusbarService,
 		@INotificationService private readonly notificationService: INotificationService,
 		@IViewsService private readonly viewsService: IViewsService,
-		@IStorageService private readonly storageService: IStorageService
+		@IStorageService private readonly storageService: IStorageService,
+		@IFileService private readonly fileService: IFileService,
+		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
+		@IVoidSettingsService private readonly voidSettingsService: IVoidSettingsService
 	) {
 		super();
 		this.init();
@@ -408,6 +414,13 @@ export class MetisDashboardStartupContribution extends Disposable implements IWo
 		);
 
 		await this.lifecycleService.when(LifecyclePhase.Restored);
+
+		// Discover and sync service tokens across storage and settings
+		try {
+			await resolveMetisTokensAsync(this.fileService, this.workspaceContextService, this.storageService, this.voidSettingsService);
+		} catch {
+			// fallback to storage or defaults
+		}
 
 		// Always ensure the Metis Sovereign Dashboard is opened on startup
 		const openEditors = this.editorService.findEditors(MetisDashboardInput.RESOURCE);
@@ -496,7 +509,7 @@ export class MetisDashboardStartupContribution extends Disposable implements IWo
 		// 2. Poll Kybernetes Attention
 		try {
 			const attRes = await fetch('http://127.0.0.1:8081/v1/lochos/attention', {
-				headers: { 'Authorization': 'Bearer metis-sovereign' },
+				headers: { ...getMetisAuthHeaders(this.storageService, this.voidSettingsService) },
 				signal: AbortSignal.timeout(2000)
 			});
 			if (attRes.ok) {
@@ -533,7 +546,7 @@ export class MetisDashboardStartupContribution extends Disposable implements IWo
 							await fetch('http://127.0.0.1:8081/v1/lochos/attention/resolve', {
 								method: 'POST',
 								headers: {
-									'Authorization': 'Bearer metis-sovereign',
+									...getMetisAuthHeaders(this.storageService, this.voidSettingsService),
 									'Content-Type': 'application/json'
 								},
 								body: JSON.stringify({ task_id: taskId, seat_id: seatId, resolution: 'approved' })
@@ -551,7 +564,7 @@ export class MetisDashboardStartupContribution extends Disposable implements IWo
 							await fetch('http://127.0.0.1:8081/v1/lochos/attention/resolve', {
 								method: 'POST',
 								headers: {
-									'Authorization': 'Bearer metis-sovereign',
+									...getMetisAuthHeaders(this.storageService, this.voidSettingsService),
 									'Content-Type': 'application/json'
 								},
 								body: JSON.stringify({ task_id: taskId, seat_id: seatId, resolution: 'rejected' })

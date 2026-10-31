@@ -34,6 +34,7 @@ import { INotificationService } from '../../../../platform/notification/common/n
 import { Action2, MenuId, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextkey.js';
 import { ServicesAccessor } from '../../../../editor/browser/editorExtensions.js';
+import { getMetisAuthHeaders, getMetisHestiaToken } from './metisTokenHelper.js';
 
 const _ttPolicy = createTrustedTypesPolicy('metisViews', { createHTML: (value: string) => value });
 
@@ -113,7 +114,7 @@ export class PhylaxViewPane extends ViewPane {
 	private async _pollTokens(parent: HTMLElement): Promise<void> {
 		try {
 			const res = await fetch('http://127.0.0.1:8081/v1/lochos/attention', {
-				headers: { 'Authorization': 'Bearer metis-sovereign' },
+				headers: { ...getMetisAuthHeaders() },
 				signal: AbortSignal.timeout(2000)
 			});
 			if (res.ok) {
@@ -136,7 +137,7 @@ export class PhylaxViewPane extends ViewPane {
 			await fetch('http://127.0.0.1:8081/v1/lochos/attention/resolve', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({ task_id: taskId, seat_id: seatId, resolution })
@@ -874,17 +875,18 @@ export class LochosViewPane extends ViewPane {
 
 	private async _pollLochos(parent: HTMLElement): Promise<void> {
 		try {
+			const headers = getMetisAuthHeaders();
 			const [squadRes, queueRes, attnRes] = await Promise.allSettled([
 				fetch('http://127.0.0.1:8081/v1/lochos/squad', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				}),
 				fetch('http://127.0.0.1:8081/v1/lochos/queue', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				}),
 				fetch('http://127.0.0.1:8081/v1/lochos/attention', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				})
 			]);
@@ -929,7 +931,7 @@ export class LochosViewPane extends ViewPane {
 			await fetch('http://127.0.0.1:8081/v1/lochos/attention/resolve', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({ task_id: taskId, seat_id: seatId, resolution })
@@ -945,7 +947,7 @@ export class LochosViewPane extends ViewPane {
 			await fetch('http://127.0.0.1:8081/v1/lochos/transfer', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
@@ -1714,7 +1716,7 @@ export class MetisAgentHubViewPane extends ViewPane {
 			await fetch('http://127.0.0.1:8081/v1/lochos/attention/resolve', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({ task_id: taskId, seat_id: seatId, resolution })
@@ -1734,13 +1736,14 @@ export class MetisAgentHubViewPane extends ViewPane {
 
 	private async _pollQueue(parent: HTMLElement): Promise<void> {
 		try {
+			const headers = getMetisAuthHeaders();
 			const [queueRes, attnRes] = await Promise.allSettled([
 				fetch('http://127.0.0.1:8081/v1/lochos/queue', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				}),
 				fetch('http://127.0.0.1:8081/v1/lochos/attention', {
-					headers: { 'Authorization': 'Bearer metis-sovereign' },
+					headers,
 					signal: AbortSignal.timeout(2000)
 				})
 			]);
@@ -3014,7 +3017,7 @@ export class MetisChatViewPane extends ViewPane {
 			await fetch('http://127.0.0.1:8081/v1/lochos/attention/resolve', {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer metis-sovereign',
+					...getMetisAuthHeaders(),
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({ task_id: taskId, seat_id: seatId, resolution })
@@ -3045,7 +3048,7 @@ export class MetisChatViewPane extends ViewPane {
 	private async _pollAttention(parent: HTMLElement): Promise<void> {
 		try {
 			const res = await fetch('http://127.0.0.1:8081/v1/lochos/attention', {
-				headers: { 'Authorization': 'Bearer metis-sovereign' },
+				headers: { ...getMetisAuthHeaders() },
 				signal: AbortSignal.timeout(2000)
 			});
 			if (res.ok) {
@@ -3085,7 +3088,7 @@ export class MetisChatViewPane extends ViewPane {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': 'Bearer metis-sovereign'
+					'Authorization': `Bearer ${getMetisHestiaToken()}`
 				},
 				body: JSON.stringify({
 					model: 'qwen2.5-14b-instruct',

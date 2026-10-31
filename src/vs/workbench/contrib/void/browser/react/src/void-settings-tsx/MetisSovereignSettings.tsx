@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAccessor, useSettingsState } from '../util/services.js';
 import { VoidSwitch } from '../util/inputs.js';
 import { StorageScope, StorageTarget } from '../../../../../../../platform/storage/common/storage.js';
+import { getMetisKybernetesToken, getMetisHestiaToken } from '../../../metisTokenHelper.js';
 import {
 	Play,
 	Square,
@@ -193,13 +194,13 @@ export const useStackController = () => {
 		const hestiaPort = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
 		const hestiaConfig = storageService.get('metis.hestia.configPath', StorageScope.APPLICATION, 'hestia/hestia.yaml');
 		const hestiaModels = storageService.get('metis.hestia.modelsPath', StorageScope.APPLICATION, 'hestia/models.yaml');
-		const hestiaToken = storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, 'metis-sovereign');
+		const hestiaToken = storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, getMetisHestiaToken(storageService));
 
 		const kybHost = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
 		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
 		const kybDbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
 		const kybAdminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
-		const kybServiceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
+		const kybServiceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, getMetisKybernetesToken(storageService));
 		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
 
 		const prosHost = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
@@ -225,13 +226,13 @@ export const useStackController = () => {
 		const hestiaPort = storageService.get('metis.hestia.port', StorageScope.APPLICATION, '8080');
 		const hestiaConfig = storageService.get('metis.hestia.configPath', StorageScope.APPLICATION, 'hestia/hestia.yaml');
 		const hestiaModels = storageService.get('metis.hestia.modelsPath', StorageScope.APPLICATION, 'hestia/models.yaml');
-		const hestiaToken = storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, 'metis-sovereign');
+		const hestiaToken = storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, getMetisHestiaToken(storageService));
 
 		const kybHost = storageService.get('metis.kybernetes.host', StorageScope.APPLICATION, '127.0.0.1');
 		const kybPort = storageService.get('metis.kybernetes.port', StorageScope.APPLICATION, '8081');
 		const kybDbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
 		const kybAdminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
-		const kybServiceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
+		const kybServiceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, getMetisKybernetesToken(storageService));
 		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
 
 		const prosHost = storageService.get('metis.prosopon.host', StorageScope.APPLICATION, '127.0.0.1');
@@ -281,7 +282,7 @@ export const useStackController = () => {
 		const dbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
 		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
 		const adminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
-		const serviceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
+		const serviceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, getMetisKybernetesToken(storageService));
 
 		const cmd = `cd /home/akarta/Projects/Metis && KYBERNETES_ADMIN_TOKEN=${adminToken} KYBERNETES_SERVICE_TOKEN=${serviceToken} (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} &) && echo "[Metis] Kybernetes starting on ${host}:${port}..."`;
 		executeCommandInStackTerminal(cmd, `Starting Kybernetes on port ${port}...`);
@@ -297,7 +298,7 @@ export const useStackController = () => {
 		const dbPath = storageService.get('metis.kybernetes.dbPath', StorageScope.APPLICATION, 'kybernetes_budget.db');
 		const memoryRoot = storageService.get('metis.stoma.root', StorageScope.APPLICATION, '.stoma');
 		const adminToken = storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token');
-		const serviceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token');
+		const serviceToken = storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, getMetisKybernetesToken(storageService));
 
 		executeCommandInStackTerminal(
 			`pkill -f "kybernetes.*serve" || true ; sleep 1 ; cd /home/akarta/Projects/Metis && KYBERNETES_ADMIN_TOKEN=${adminToken} KYBERNETES_SERVICE_TOKEN=${serviceToken} (kybernetes/.venv/bin/kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} || uv run kybernetes serve --host ${host} --port ${port} --db-path ${dbPath} --memory-root ${memoryRoot} --admin-token ${adminToken} --service-token ${serviceToken} &) && echo "[Metis] Kybernetes restarted on ${host}:${port}."`,
@@ -801,7 +802,7 @@ export const HestiaSection = () => {
 		storageService.get('metis.hestia.logLevel', StorageScope.APPLICATION, 'INFO')
 	);
 	const [serviceToken, setServiceToken] = useState(
-		storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, 'metis-sovereign')
+		storageService.get('metis.hestia.serviceToken', StorageScope.APPLICATION, getMetisHestiaToken(storageService))
 	);
 	const [maxConcurrent, setMaxConcurrent] = useState(
 		storageService.get('metis.hestia.maxConcurrent', StorageScope.APPLICATION, '8')
@@ -1177,7 +1178,7 @@ export const KybernetesSection = () => {
 		storageService.get('metis.kybernetes.adminToken', StorageScope.APPLICATION, 'metis-local-admin-token')
 	);
 	const [serviceToken, setServiceToken] = useState(
-		storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, 'metis-local-service-token')
+		storageService.get('metis.kybernetes.serviceToken', StorageScope.APPLICATION, getMetisKybernetesToken(storageService))
 	);
 	const [adminEnabled, setAdminEnabled] = useState(
 		storageService.getBoolean('metis.kybernetes.adminEnabled', StorageScope.APPLICATION, true)
