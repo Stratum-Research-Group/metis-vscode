@@ -52,7 +52,8 @@ import {
 	Send,
 	ArrowLeftRight,
 	CheckSquare,
-	XSquare
+	XSquare,
+	Plus
 } from 'lucide-react';
 import { URI } from '../../../../../../../base/common/uri.js';
 import { VSBuffer } from '../../../../../../../base/common/buffer.js';
@@ -741,6 +742,13 @@ export const MetisDashboard: React.FC = () => {
 	const [transferNote, setTransferNote] = useState<string>('');
 	const [kleroterionMode, setKleroterionMode] = useState<'exact_fact' | 'exploratory'>('exact_fact');
 
+	// Autonomous Pipeline Modal & Inputs
+	const [showPipelineModal, setShowPipelineModal] = useState<boolean>(false);
+	const [isSubmittingPipeline, setIsSubmittingPipeline] = useState<boolean>(false);
+	const [pipelineGoal, setPipelineGoal] = useState<string>('');
+	const [pipelineMission, setPipelineMission] = useState<string>('sovereign-mission');
+	const [pipelineSliceId, setPipelineSliceId] = useState<string>('001');
+
 	// Fetch Lochos Squad, Queue, and Attention
 	const fetchLochosData = useCallback(async () => {
 		try {
@@ -911,6 +919,70 @@ export const MetisDashboard: React.FC = () => {
 		} catch (err: any) {
 			console.error('Resolve attention error:', err);
 			notificationService.error(`Failed to resolve attention: ${err?.message || err}`);
+		}
+	};
+
+	// Complete Active Lochos Task
+	const handleCompleteLochosTask = async (taskId: string, seatId: string) => {
+		try {
+			const res = await fetch('http://127.0.0.1:8081/v1/lochos/complete', {
+				method: 'POST',
+				headers: {
+					...getMetisAuthHeaders(storageService, voidSettingsService),
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					task_id: taskId,
+					seat_id: seatId,
+					resolution: 'completed'
+				})
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ detail: res.statusText }));
+				throw new Error(err.detail || 'Failed to complete task');
+			}
+			notificationService.info(`Task #${taskId} marked completed!`);
+			await fetchLochosData();
+		} catch (err: any) {
+			console.error('Complete error:', err);
+			notificationService.error(`Failed to complete task: ${err?.message || err}`);
+		}
+	};
+
+	// Run Autonomous Lochos Pipeline
+	const handleRunLochosPipeline = async () => {
+		if (!pipelineGoal.trim()) {
+			notificationService.error('Please enter a pipeline goal / prompt.');
+			return;
+		}
+		setIsSubmittingPipeline(true);
+		try {
+			const res = await fetch('http://127.0.0.1:8081/v1/lochos/pipeline', {
+				method: 'POST',
+				headers: {
+					...getMetisAuthHeaders(storageService, voidSettingsService),
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					prompt: pipelineGoal.trim(),
+					mission: pipelineMission.trim() || 'sovereign-mission',
+					slice_id: pipelineSliceId.trim() || '001'
+				})
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ detail: res.statusText }));
+				throw new Error(err.detail || 'Failed to launch pipeline');
+			}
+			const data = await res.json();
+			notificationService.info(`Autonomous pipeline launched: Task #${data.task_id || 'dispatched'}!`);
+			setShowPipelineModal(false);
+			setPipelineGoal('');
+			await fetchLochosData();
+		} catch (err: any) {
+			console.error('Pipeline error:', err);
+			notificationService.error(`Pipeline failed: ${err?.message || err}`);
+		} finally {
+			setIsSubmittingPipeline(false);
 		}
 	};
 
@@ -2209,21 +2281,38 @@ export const MetisDashboard: React.FC = () => {
 									</p>
 								</div>
 
-								{/* Queue Status Filter Pills */}
-								<div className="flex items-center gap-1.5 bg-[#131b2e] p-1 rounded-xl border border-gray-800 text-xs">
-									{(['all', 'in_progress', 'completed', 'blocked'] as const).map(filter => (
-										<button
-											key={filter}
-											onClick={() => setQueueFilter(filter)}
-											className={`px-3 py-1 rounded-lg font-semibold uppercase text-[10px] tracking-wider transition-all ${
-												queueFilter === filter
-													? 'bg-blue-600 text-white shadow-md'
-													: 'text-gray-400 hover:text-white'
-											}`}
-										>
-											{filter.replace('_', ' ')}
-										</button>
-									))}
+								<div className="flex flex-wrap items-center gap-2">
+									{/* Queue Status Filter Pills */}
+									<div className="flex items-center gap-1.5 bg-[#131b2e] p-1 rounded-xl border border-gray-800 text-xs">
+										{(['all', 'in_progress', 'completed', 'blocked'] as const).map(filter => (
+											<button
+												key={filter}
+												onClick={() => setQueueFilter(filter)}
+												className={`px-3 py-1 rounded-lg font-semibold uppercase text-[10px] tracking-wider transition-all ${
+													queueFilter === filter
+														? 'bg-blue-600 text-white shadow-md'
+														: 'text-gray-400 hover:text-white'
+												}`}
+											>
+												{filter.replace('_', ' ')}
+											</button>
+										))}
+									</div>
+
+									<button
+										onClick={() => setShowPipelineModal(true)}
+										className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition-all hover:scale-105"
+									>
+										<Play className="w-3.5 h-3.5" />
+										Run Pipeline
+									</button>
+									<button
+										onClick={() => setShowDispatchModal(true)}
+										className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md transition-all hover:scale-105"
+									>
+										<Plus className="w-3.5 h-3.5" />
+										Dispatch
+									</button>
 								</div>
 							</div>
 
@@ -2298,16 +2387,25 @@ export const MetisDashboard: React.FC = () => {
 
 													<div className="flex items-center gap-2 shrink-0">
 														{isInProgress && (
-															<button
-																onClick={() => {
-																	setTransferTaskId(task.task_id);
-																	setShowTransferModal(true);
-																}}
-																className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-cyan-300 border border-cyan-800/50 text-xs font-semibold transition-all hover:scale-105"
-															>
-																<ArrowLeftRight className="w-3.5 h-3.5" />
-																Transfer Baton
-															</button>
+															<>
+																<button
+																	onClick={() => handleCompleteLochosTask(task.task_id, task.baton_owner?.split('@')[0] || activeSeatId)}
+																	className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/40 text-xs font-semibold transition-all hover:scale-105"
+																>
+																	<CheckCircle2 className="w-3.5 h-3.5" />
+																	Complete
+																</button>
+																<button
+																	onClick={() => {
+																		setTransferTaskId(task.task_id);
+																		setShowTransferModal(true);
+																	}}
+																	className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1e293b] hover:bg-[#334155] text-cyan-300 border border-cyan-800/50 text-xs font-semibold transition-all hover:scale-105"
+																>
+																	<ArrowLeftRight className="w-3.5 h-3.5" />
+																	Transfer Baton
+																</button>
+															</>
 														)}
 
 														<button
@@ -2505,6 +2603,79 @@ export const MetisDashboard: React.FC = () => {
 										>
 											{isTransferringBaton ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeftRight className="w-4 h-4" />}
 											Execute Handoff
+										</button>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Autonomous Lochos Pipeline Modal */}
+						{showPipelineModal && (
+							<div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+								<div className="bg-[#0f172a] border border-emerald-500/40 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+									<div className="flex items-center justify-between pb-3 border-b border-gray-800">
+										<div className="flex items-center gap-2">
+											<Play className="w-5 h-5 text-emerald-400" />
+											<h3 className="text-base font-bold text-white">
+												Launch Autonomous Lochos Pipeline
+											</h3>
+										</div>
+										<button
+											onClick={() => setShowPipelineModal(false)}
+											className="text-gray-400 hover:text-white text-sm"
+										>
+											✕
+										</button>
+									</div>
+
+									<div className="space-y-3 text-xs">
+										<div className="grid grid-cols-2 gap-3">
+											<div>
+												<label className="text-gray-400 block mb-1 font-semibold">Mission Tag</label>
+												<input
+													type="text"
+													value={pipelineMission}
+													onChange={e => setPipelineMission(e.target.value)}
+													className="w-full bg-[#131b2e] border border-gray-700 rounded-lg p-2 text-white"
+												/>
+											</div>
+											<div>
+												<label className="text-gray-400 block mb-1 font-semibold">Slice ID</label>
+												<input
+													type="text"
+													value={pipelineSliceId}
+													onChange={e => setPipelineSliceId(e.target.value)}
+													className="w-full bg-[#131b2e] border border-gray-700 rounded-lg p-2 text-white font-mono"
+												/>
+											</div>
+										</div>
+
+										<div>
+											<label className="text-gray-400 block mb-1 font-semibold">Goal / Specification Prompt</label>
+											<textarea
+												rows={4}
+												value={pipelineGoal}
+												onChange={e => setPipelineGoal(e.target.value)}
+												placeholder="Describe what the autonomous multi-agent squad should architect, code, test, and verify..."
+												className="w-full bg-[#131b2e] border border-gray-700 rounded-lg p-2.5 text-white"
+											/>
+										</div>
+									</div>
+
+									<div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-800">
+										<button
+											onClick={() => setShowPipelineModal(false)}
+											className="px-4 py-2 rounded-xl text-gray-400 hover:text-white text-xs font-semibold"
+										>
+											Cancel
+										</button>
+										<button
+											onClick={handleRunLochosPipeline}
+											disabled={isSubmittingPipeline}
+											className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-950/50"
+										>
+											{isSubmittingPipeline ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+											Execute Pipeline
 										</button>
 									</div>
 								</div>
