@@ -11,8 +11,8 @@ import { FeatureName, ModelSelectionOptions, OverridesOfModel, ProviderName } fr
 
 export const defaultProviderSettings = {
 	metis: {
-		endpoint: 'http://127.0.0.1:8080/v1',
-		orchestratorEndpoint: 'http://127.0.0.1:8081/v1',
+		endpoint: 'http://127.0.0.1:8092/v1',
+		orchestratorEndpoint: 'http://127.0.0.1:8092/v1',
 		apiKey: 'metis-sovereign',
 	},
 	anthropic: {
@@ -1268,6 +1268,42 @@ const openaiCompatible: VoidStaticProviderInfo = {
 const metisSettings: VoidStaticProviderInfo = {
 	modelOptionsFallback: (modelName) => extensiveModelOptionsFallback(modelName, { downloadable: { sizeGb: 'not-known' } }),
 	modelOptions: {
+		'imf-council-model': {
+			contextWindow: 65_536,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: false,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: true,
+		},
+		'imf-foundation-1.14b': {
+			contextWindow: 32_768,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: true,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: true,
+		},
+		'imf-70b-plq': {
+			contextWindow: 32_768,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: false,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: true,
+		},
+		'weft2-extended-rlvr': {
+			contextWindow: 16_384,
+			reservedOutputTokenSpace: null,
+			cost: { input: 0, output: 0 },
+			downloadable: false,
+			supportsFIM: true,
+			supportsSystemMessage: 'system-role',
+			reasoningCapabilities: false,
+		},
 		'qwen2.5-14b-instruct': {
 			contextWindow: 32_768,
 			reservedOutputTokenSpace: null,
