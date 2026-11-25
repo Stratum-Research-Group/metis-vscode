@@ -1275,7 +1275,7 @@ const metisSettings: VoidStaticProviderInfo = {
 			downloadable: false,
 			supportsFIM: false,
 			supportsSystemMessage: 'system-role',
-			reasoningCapabilities: true,
+			reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: false, canIOReasoning: true, openSourceThinkTags: ['<think>', '</think>'] },
 		},
 		'imf-foundation-1.14b': {
 			contextWindow: 32_768,
@@ -1284,7 +1284,7 @@ const metisSettings: VoidStaticProviderInfo = {
 			downloadable: false,
 			supportsFIM: true,
 			supportsSystemMessage: 'system-role',
-			reasoningCapabilities: true,
+			reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: false, canIOReasoning: true, openSourceThinkTags: ['<think>', '</think>'] },
 		},
 		'imf-70b-plq': {
 			contextWindow: 32_768,
@@ -1293,7 +1293,7 @@ const metisSettings: VoidStaticProviderInfo = {
 			downloadable: false,
 			supportsFIM: false,
 			supportsSystemMessage: 'system-role',
-			reasoningCapabilities: true,
+			reasoningCapabilities: { supportsReasoning: true, canTurnOffReasoning: false, canIOReasoning: true, openSourceThinkTags: ['<think>', '</think>'] },
 		},
 		'weft2-extended-rlvr': {
 			contextWindow: 16_384,
