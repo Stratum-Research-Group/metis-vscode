@@ -11,6 +11,7 @@ import './editCodeService.js'
 import './sidebarActions.js'
 import './sidebarPane.js'
 import './metisViews.js'
+import './metisIMFCouncilViews.js'
 
 // register quick edit (Ctrl+K)
 import './quickEditActions.js'
